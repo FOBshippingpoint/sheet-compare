@@ -10,6 +10,7 @@
   } from './lib/export.js'
   import { loadSampleFiles, sampleOptions } from './lib/sample.js'
   import SourcePreview from './lib/SourcePreview.svelte'
+  import DropZone from './lib/DropZone.svelte'
 
   const defaultOptions = {
     show_unchanged: false,
@@ -24,15 +25,12 @@
   let result = $state(null)
   let error = $state('')
   let busy = $state('')
-  let dragging = $state(null)
   let exportingHtml = $state(false)
   let exportedHtml = $state(false)
   let selectedSampleId = $state('')
   let previewSplit = $state(50)
   let verticalSplit = $state(47)
 
-  let leftInput = $state(null)
-  let rightInput = $state(null)
   let compareLayout = $state(null)
 
   const ready = $derived(left && right)
@@ -92,9 +90,6 @@
   }
 
   function dropFile(side, event) {
-    event.preventDefault()
-    dragging = null
-
     const file = event.dataTransfer.files[0]
 
     if (file) void chooseFile(side, file)
@@ -189,7 +184,7 @@
 
     if (
       hasUnsavedFiles &&
-      !window.confirm('Discard current files? Export HTML first if you want to keep this comparison.')
+      !window.confirm('Discard current files? Export first if you want to keep this comparison.')
     ) {
       return
     }
@@ -203,7 +198,6 @@
     result = null
     error = ''
     busy = ''
-    dragging = null
     exportedHtml = false
     selectedSampleId = ''
     options = { ...defaultOptions }
@@ -281,59 +275,23 @@
 
   {#if !ready}
     <section class="upload" aria-label="Choose files">
-      <section
-        class:dragging={dragging === 'left'}
-        aria-labelledby="left-title"
-        ondragover={(event) => {
-          event.preventDefault()
-          dragging = 'left'
-        }}
-        ondragleave={() => (dragging = null)}
+      <DropZone
+        title="Left Sheet File"
+        description="CSV or XLSX"
+        accept=".csv,.xlsx"
+        file={left}
+        onchange={(event) => chooseInputFile('left', event)}
         ondrop={(event) => dropFile('left', event)}
-      >
-        <h2 id="left-title">Left</h2>
-        {#if left}
-          <p class="loaded-file">{left.file.name} ({Math.ceil(left.file.size / 1024)} KB)</p>
-        {:else}
-          <p>CSV or XLSX</p>
-        {/if}
-        <button type="button" onclick={() => leftInput.click()}>Browse Files</button>
-        <input
-          bind:this={leftInput}
-          aria-label="Left file"
-          type="file"
-          accept=".csv,.xlsx"
-          onchange={(event) => chooseInputFile('left', event)}
-        />
-      </section>
-
+      />
       <p class="versus">vs.</p>
-
-      <section
-        class:dragging={dragging === 'right'}
-        aria-labelledby="right-title"
-        ondragover={(event) => {
-          event.preventDefault()
-          dragging = 'right'
-        }}
-        ondragleave={() => (dragging = null)}
+      <DropZone
+        title="Right Sheet File"
+        description="CSV or XLSX"
+        accept=".csv,.xlsx"
+        file={right}
+        onchange={(event) => chooseInputFile('right', event)}
         ondrop={(event) => dropFile('right', event)}
-      >
-        <h2 id="right-title">Right</h2>
-        {#if right}
-          <p class="loaded-file">{right.file.name} ({Math.ceil(right.file.size / 1024)} KB)</p>
-        {:else}
-          <p>CSV or XLSX</p>
-        {/if}
-        <button type="button" onclick={() => rightInput.click()}>Browse Files</button>
-        <input
-          bind:this={rightInput}
-          aria-label="Right file"
-          type="file"
-          accept=".csv,.xlsx"
-          onchange={(event) => chooseInputFile('right', event)}
-        />
-      </section>
+      />
     </section>
   {:else}
     <section

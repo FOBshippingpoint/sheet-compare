@@ -169,24 +169,32 @@ main {
   gap: 16px;
   padding: 16px;
 
-  section {
-    min-height: 300px;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 8px;
-    border: 1px dashed var(--outline-variant);
-    background: var(--surface-lowest);
-
-    &.dragging {
-      border-color: var(--primary);
-      background: var(--surface-low);
-    }
+  .versus {
+    align-self: center;
+    color: var(--on-surface-variant);
+    font-size: 18px;
+    font-weight: 600;
   }
+}
+
+.dropzone {
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  border: 1px dashed var(--outline-variant);
+  background: var(--surface-lowest);
+  cursor: pointer;
 
   h2,
   p {
     margin: 0;
+  }
+
+  h2 {
+    font-size: 14px;
+    line-height: 20px;
   }
 
   .loaded-file {
@@ -198,11 +206,6 @@ main {
     white-space: nowrap;
   }
 
-  h2 {
-    font-size: 14px;
-    line-height: 20px;
-  }
-
   input {
     position: absolute;
     inline-size: 1px;
@@ -210,11 +213,9 @@ main {
     opacity: 0;
   }
 
-  .versus {
-    align-self: center;
-    color: var(--on-surface-variant);
-    font-size: 18px;
-    font-weight: 600;
+  &.dragging {
+    border-color: var(--primary);
+    background: var(--surface-low);
   }
 }
 

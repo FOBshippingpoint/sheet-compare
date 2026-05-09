@@ -9,10 +9,10 @@
   const rows = $derived(rowsForSelectedSheet(input).slice(0, 50))
 </script>
 
-<article class="preview" aria-labelledby={titleId}>
+<section class="preview" aria-labelledby={titleId}>
   <header>
     <h2 id={titleId}>{title}</h2>
-    <p>{input.file.name} ({Math.ceil(input.file.size / 1024)} KB)</p>
+    <p title={input.file.name}>{input.file.name} ({Math.ceil(input.file.size / 1024)} KB)</p>
     {#if input.file.sheets.length > 1}
       <label class="sheet">
         Sheet
@@ -25,7 +25,7 @@
         </select>
       </label>
     {:else}
-      <p class="sheet">Sheet: {input.sheetName}</p>
+      <p class="sheet" title={input.sheetName}>Sheet: {input.sheetName}</p>
     {/if}
     <menu>
       <li><button type="button" onclick={() => fileInput.click()}>Replace File</button></li>
@@ -41,4 +41,4 @@
   </header>
 
   <TablePreview {rows} />
-</article>
+</section>
