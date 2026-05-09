@@ -14,10 +14,10 @@ afterEach(() => {
 test("compares CSV files through the upload flow", async () => {
   app = mount(App, { target: document.body });
 
-  await page.getByLabelText("Left file").upload("tests/fixtures/left.csv");
+  await page.getByLabelText("Left Sheet File selector").upload("tests/fixtures/left.csv");
   await expect.element(page.getByText("left.csv", { exact: false })).toBeInTheDocument();
 
-  await page.getByLabelText("Right file").upload("tests/fixtures/right.csv");
+  await page.getByLabelText("Right Sheet File selector").upload("tests/fixtures/right.csv");
 
   await expect.element(page.getByRole("heading", { name: "Left" })).toBeInTheDocument();
   await expect.element(page.getByRole("heading", { name: "Right" })).toBeInTheDocument();
@@ -32,8 +32,8 @@ test("compares CSV files through the upload flow", async () => {
 test("show no changes found when left/right files are the same", async () => {
   app = mount(App, { target: document.body });
 
-  await page.getByLabelText("Left file").upload("tests/fixtures/left.csv");
-  await page.getByLabelText("Right file").upload("tests/fixtures/left.csv");
+  await page.getByLabelText("Left Sheet File selector").upload("tests/fixtures/left.csv");
+  await page.getByLabelText("Right Sheet File selector").upload("tests/fixtures/left.csv");
 
   await expect.element(page.getByLabelText("Diff table")).toHaveTextContent("No changes found");
 });
@@ -67,8 +67,8 @@ test("title link confirms before discarding uploaded files", async () => {
 
   app = mount(App, { target: document.body });
 
-  await page.getByLabelText("Left file").upload("tests/fixtures/left.csv");
-  await page.getByLabelText("Right file").upload("tests/fixtures/right.csv");
+  await page.getByLabelText("Left Sheet File selector").upload("tests/fixtures/left.csv");
+  await page.getByLabelText("Right Sheet File selector").upload("tests/fixtures/right.csv");
 
   confirmSpy.mockReturnValue(false);
   await page.getByRole("link", { name: "Sheet Compare" }).click();

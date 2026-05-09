@@ -10,7 +10,8 @@
     "fixtures": "uv run tests/fixtures/generate.py",
     "test:unit": "vitest run",
     "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.js",
-    "test": "bun run test:unit && bun run test:e2e"
+    "test": "bun run test:unit && bun run test:e2e",
+    "fmt": "oxfmt"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.0.0",

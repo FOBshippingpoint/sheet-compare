@@ -25,10 +25,10 @@
   {:else}
     <p>{description}</p>
   {/if}
-  <button type="button" onclick={() => fileInput.click()}>Browse Files</button>
+  <button aria-hidden="true" type="button" onclick={() => fileInput.click()}>Browse Files</button>
   <input
     bind:this={fileInput}
-    aria-label={`${title} file`}
+    aria-label={`${title} selector`}
     type="file"
     {accept}
     {onchange}

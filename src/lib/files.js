@@ -83,15 +83,34 @@ export async function fileArrayBuffer(file) {
 
 /**
  * @param {SelectedTableFile} selected
- * @returns {string[][]}
+ * @param {{ prependHeader?: boolean, prependIndex?: boolean }} [options]
  */
-export function rowsForSelectedSheet(selected) {
+export function rowsForSelectedSheet(
+  selected,
+  { prependHeader = false, prependIndex = false } = {},
+) {
   const rows = XLSX.utils.sheet_to_json(
     selected.file.workbook.Sheets[selected.sheetName],
     jsonOptions,
   );
 
   if (!rows.length) throw new Error(`${selected.sheetName} has no rows.`);
+
+  const colCount = rows[0].length;
+
+  if (prependIndex) {
+    for (let i = 0; i < rows.length; i++) {
+      rows[i].unshift(i + 1); // Faster than XLSX.utils.encode_row(i)
+    }
+  }
+
+  if (prependHeader) {
+    const colHeaders = Array.from({ length: colCount }, (_, j) => XLSX.utils.encode_col(j));
+    if (prependIndex) {
+      colHeaders.unshift("");
+    }
+    rows.unshift(colHeaders);
+  }
 
   return rows;
 }
