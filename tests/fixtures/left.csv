@@ -1,0 +1,7 @@
+id,name,email,status,role,joined,score
+1042,John Doe,john@old.com,Active,User,2024-01-02,"1,200.50"
+1046,Bob Jones,bob@example.com,Inactive,User,2024-01-03,700.00
+1047,Charlie Brown,charlie@example.com,Pending,User,2024-01-04,88.75
+1048,Diana Prince,diana@example.com,Active,Admin,2024-01-05,990.00
+"","","","","","",""
+1050,Eve Adams,eve@example.com,Active,User,2024-01-06,42.00

@@ -1,0 +1,26 @@
+{
+  "name": "sheet-compare",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "fixtures": "uv run tests/fixtures/generate.py",
+    "test:unit": "vitest run",
+    "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.js",
+    "test": "bun run test:unit && bun run test:e2e"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@vitest/browser-playwright": "^4.1.5",
+    "daff": "^1.4.2",
+    "jsdom": "^27.3.0",
+    "oxfmt": "^0.48.0",
+    "svelte": "^5.55.4",
+    "vite": "^8.0.10",
+    "vitest": "^4.0.15",
+    "xlsx": "^0.18.5"
+  }
+}
