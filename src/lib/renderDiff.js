@@ -4,29 +4,41 @@ const updateTokens = ["->", "-->", "--->"];
  * @param {unknown[][]} diffRows
  */
 export function diffRowsToView(diffRows) {
-  const headerIndex = diffRows.findIndex((row) => row[0] === "@@");
-  const header = headerIndex === -1 ? diffRows[0] : diffRows[headerIndex];
-  const bodyRows = diffRows.filter((_, index) => index !== headerIndex);
+  const actionIndex = diffRows.some((row) => row[1] === "@@") ? 1 : 0;
+  const header = diffRows[0] ?? [];
+  const bodyRows = diffRows.slice(1);
 
   return {
     headers: header.map(stringCell),
-    rows: bodyRows.map(viewRow),
+    actionIndex,
+    orderIndex: actionIndex === 1 ? 0 : -1,
+    rows: bodyRows.map((row) => viewRow(row, actionIndex)),
   };
 }
 
-function viewRow(row) {
-  const action = stringCell(row[0]);
+function viewRow(row, actionIndex) {
+  const action = stringCell(row[actionIndex]);
 
   return {
     kind: rowKind(action),
-    cells: row.map((cell, index) => viewCell(cell, action, index)),
+    cells: row.map((cell, index) =>
+      viewCell(cell, action, index === actionIndex, actionIndex === 1 && index === 0),
+    ),
   };
 }
 
-function viewCell(cell, action, index) {
-  const value = stringCell(cell);
+function viewCell(cell, action, isActionCell, isOrderCell) {
+  let value = stringCell(cell);
 
-  if (index > 0 && updateTokens.includes(action) && value.includes(action)) {
+  // Make order cell balance
+  // e.g, "6:10" => " 6:10"
+  if (isOrderCell && value) {
+    const [left, right] = value.split(":");
+    const size = Math.max(left.length, right.length);
+    value = left.padStart(size, "\xa0") + ":" + right.padEnd(size, "\xa0");
+  }
+
+  if (!isActionCell && updateTokens.includes(action) && value.includes(action)) {
     const parts = value.split(action);
 
     return {
@@ -38,7 +50,7 @@ function viewCell(cell, action, index) {
   }
 
   return {
-    kind: index === 0 ? "action-cell" : "value-cell",
+    kind: isActionCell ? "action-cell" : isOrderCell ? "order-cell" : "value-cell",
     value,
   };
 }
@@ -62,6 +74,9 @@ function stringCell(value) {
  * @param {Record<string, number>} summary
  */
 export function summaryChips(summary) {
+  function chip(marker, count, label, kind) {
+    return { marker, count, label, kind };
+  }
   return [
     chip("+++", summary.row_inserts, "row inserts", "insert"),
     chip("---", summary.row_deletes, "row deletes", "delete"),
@@ -79,8 +94,4 @@ export function summaryChips(summary) {
  */
 export function hasChanges(summary) {
   return summaryChips(summary).length > 0;
-}
-
-function chip(marker, count, label, kind) {
-  return { marker, count, label, kind };
 }

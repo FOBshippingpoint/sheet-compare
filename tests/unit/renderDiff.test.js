@@ -29,6 +29,41 @@ describe("diffRowsToView", () => {
       right: "a@new.com",
     });
   });
+
+  it("uses the second column as the action column when row and column order labels are present", () => {
+    const view = diffRowsToView([
+      ["@:@", "", "A:A", "B:B"],
+      ["", "@@", "id", "name"],
+      ["2:1", ":", "2", "Bob"],
+      ["3:2", "->", "3", "Carol->Caroline"],
+    ]);
+
+    expect(view.headers).toEqual(["@:@", "", "A:A", "B:B"]);
+    expect(view.actionIndex).toBe(1);
+    expect(view.orderIndex).toBe(0);
+    expect(view.rows.map((row) => row.kind)).toEqual(["context", "reorder", "update"]);
+    expect(view.rows[0].cells[0]).toMatchObject({
+      kind: "order-cell",
+      value: "",
+    });
+    expect(view.rows[0].cells[1]).toMatchObject({
+      kind: "action-cell",
+      value: "@@",
+    });
+    expect(view.rows[1].cells[1]).toMatchObject({
+      kind: "action-cell",
+      value: ":",
+    });
+    expect(view.rows[2].cells[1]).toMatchObject({
+      kind: "action-cell",
+      value: "->",
+    });
+    expect(view.rows[2].cells[3]).toMatchObject({
+      left: "Carol",
+      separator: "->",
+      right: "Caroline",
+    });
+  });
 });
 
 describe("summaryChips", () => {

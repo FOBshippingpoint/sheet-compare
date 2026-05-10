@@ -8,6 +8,7 @@ declare module "daff" {
     show_unchanged_columns: boolean;
     ignore_whitespace: boolean;
     ignore_case: boolean;
+    never_show_order: boolean;
   }
 
   export class TableDiff {

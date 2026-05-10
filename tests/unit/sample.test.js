@@ -56,5 +56,7 @@ describe("loadSampleFiles", () => {
     expect(
       result.summary.row_inserts + result.summary.row_deletes + result.summary.row_updates,
     ).toBeGreaterThan(0);
+    expect(result.summary.row_reorders).toBeGreaterThan(0);
+    expect(result.diffRows[0]).toEqual(["@:@", "", "A:A", "B:B", "C:C", "D:D", "E:E", "F:F"]);
   });
 });

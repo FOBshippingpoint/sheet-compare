@@ -6,7 +6,7 @@
   let fileInput = $state(null)
 
   const titleId = $derived(`${title.toLowerCase()}-preview-title`)
-  const rows = $derived(rowsForSelectedSheet(input))
+  const rows = $derived(rowsForSelectedSheet(input, { prependHeader: true, prependIndex: true }))
 </script>
 
 <section class="preview" aria-labelledby={titleId}>

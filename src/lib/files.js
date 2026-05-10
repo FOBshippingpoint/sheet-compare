@@ -100,7 +100,7 @@ export function rowsForSelectedSheet(
 
   if (prependIndex) {
     for (let i = 0; i < rows.length; i++) {
-      rows[i].unshift(i + 1); // Faster than XLSX.utils.encode_row(i)
+      rows[i].unshift(i); // Starts from zero for now. Because for an ordinary table with header, daff will NOT include the header row in reorder information (e.g., 1:2 means 1st "data" row moved to 2nd, not header)
     }
   }
 

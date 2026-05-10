@@ -11,6 +11,8 @@
   import { loadSampleFiles, sampleOptions } from './lib/sample.js'
   import SourcePreview from './lib/SourcePreview.svelte'
   import DropZone from './lib/DropZone.svelte'
+  import FrozenTable from './lib/FrozenTable.svelte'
+  import { diffViewToTable } from './lib/tableModel.js'
 
   const defaultOptions = {
     show_unchanged: false,
@@ -30,11 +32,14 @@
   let selectedSampleId = $state('')
   let previewSplit = $state(50)
   let verticalSplit = $state(47)
+  let diffFrozenRows = $state(2)
+  let diffFrozenCols = $state(2)
 
   let compareLayout = $state(null)
 
   const ready = $derived(left && right)
   const diffView = $derived(result ? diffRowsToView(result.diffRows) : null)
+  const diffTable = $derived(diffView ? diffViewToTable(diffView) : null)
   const chips = $derived(result ? summaryChips(result.summary) : [])
   const noChanges = $derived(result && !hasChanges(result.summary))
   const hasUnsavedFiles = $derived(ready && !exportedHtml && !selectedSampleId)
@@ -203,6 +208,8 @@
     options = { ...defaultOptions }
     previewSplit = 50
     verticalSplit = 47
+    diffFrozenRows = 2
+    diffFrozenCols = 2
   }
 
   function startResize(kind, event) {
@@ -380,33 +387,13 @@
         <section class="diff" aria-label="Diff table">
           {#if noChanges}
             <p class="no-changes">No changes found</p>
-          {:else}
-            <table>
-              <thead>
-                <tr>
-                  {#each diffView.headers as cell, index (index)}
-                    <th>{cell}</th>
-                  {/each}
-                </tr>
-              </thead>
-              <tbody>
-                {#each diffView.rows as row, rowIndex (rowIndex)}
-                  <tr class={row.kind}>
-                    {#each row.cells as cell, cellIndex (cellIndex)}
-                      <td class={cell.kind}>
-                        {#if cell.left !== undefined}
-                          <span class="left-value">{cell.left}</span>
-                          <span class="separator">{cell.separator}</span>
-                          <span class="right-value">{cell.right}</span>
-                        {:else}
-                          {cell.value}
-                        {/if}
-                      </td>
-                    {/each}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+          {:else if diffTable}
+            <FrozenTable
+              ariaLabel="Diff data table"
+              table={diffTable}
+              bind:frozenRows={diffFrozenRows}
+              bind:frozenCols={diffFrozenCols}
+            />
           {/if}
         </section>
       {/if}

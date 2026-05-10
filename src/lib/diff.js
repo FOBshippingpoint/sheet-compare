@@ -45,7 +45,7 @@ function createFlags(options) {
   flags.show_unchanged_columns = options.show_unchanged_columns;
   flags.ignore_whitespace = options.ignore_whitespace;
   flags.ignore_case = options.ignore_case;
-  // flags.never_show_order = false;
+  flags.never_show_order = false;
 
   return flags;
 }

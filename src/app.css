@@ -57,13 +57,13 @@ input[type="file"]::file-selector-button {
   line-height: 18px;
 }
 
-button:not(.split-handle),
+button:not(.split-handle):not(.freeze-handle),
 select {
   block-size: var(--control-height);
   border-radius: 5px;
 }
 
-button:not(.split-handle) {
+button:not(.split-handle):not(.freeze-handle) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -328,42 +328,6 @@ main {
   border-block: 1px solid var(--outline-variant);
 }
 
-.table-wrap,
-.diff {
-  min-height: 0;
-  overflow: auto;
-  background: var(--surface-lowest);
-}
-
-.table-wrap {
-  flex: 1;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  white-space: nowrap;
-  font: 12px/16px var(--sans);
-  font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-  height: 24px;
-  padding: 2px 8px;
-  border: 1px solid var(--outline-variant);
-  text-align: left;
-  vertical-align: middle;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--surface-low);
-  font-weight: 500;
-}
-
 .results-toolbar {
   grid-row: 3;
   display: flex;
@@ -433,62 +397,18 @@ output {
 .diff {
   grid-row: 4;
   min-height: 0;
+  display: flex;
+  background: var(--surface-lowest);
 
   .no-changes {
     min-height: 100%;
+    flex: 1;
     display: grid;
     place-items: center;
     margin: 0;
     color: var(--on-surface-variant);
     font-size: 14px;
     font-weight: 600;
-  }
-
-  .insert {
-    background: var(--add-bg);
-  }
-
-  .delete {
-    background: var(--del-bg);
-  }
-
-  .update {
-    background: var(--mod-bg);
-  }
-
-  .schema,
-  .omitted,
-  .reorder {
-    background: var(--surface-low);
-    color: var(--on-surface-variant);
-  }
-
-  .action-cell {
-    text-align: center;
-    font-family: var(--mono);
-    font-weight: 600;
-  }
-
-  th:first-child {
-    text-align: center;
-    font-family: var(--mono);
-    font-weight: 600;
-  }
-
-  .left-value {
-    color: var(--del-text);
-    text-decoration: line-through;
-  }
-
-  .separator {
-    margin: 0 4px;
-    color: var(--mod-text);
-    font-family: var(--mono);
-    font-weight: 600;
-  }
-
-  .right-value {
-    color: var(--add-text);
   }
 }
 

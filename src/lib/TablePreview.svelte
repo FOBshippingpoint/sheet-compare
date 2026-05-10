@@ -1,24 +1,12 @@
 <script>
+  import FrozenTable from './FrozenTable.svelte'
+  import { sheetRowsToTable } from './tableModel.js'
+
   let { rows } = $props()
+  let frozenRows = $state(1)
+  let frozenCols = $state(1)
+
+  const table = $derived(sheetRowsToTable(rows))
 </script>
 
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        {#each rows[0] ?? [] as cell, index (index)}
-          <th>{cell}</th>
-        {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each rows.slice(1) as row, rowIndex (rowIndex)}
-        <tr>
-          {#each row as cell, cellIndex (cellIndex)}
-            <td>{cell}</td>
-          {/each}
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-</div>
+<FrozenTable ariaLabel="Sheet preview table" {table} bind:frozenRows bind:frozenCols />
