@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "table-compare2",
+      "name": "sheet-compare",
       "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^7.0.0",
         "@vitest/browser-playwright": "^4.1.5",
