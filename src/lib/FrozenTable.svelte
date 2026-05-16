@@ -1,61 +1,121 @@
 <script>
-  import { tick } from 'svelte'
-  import { clamp, nearestOffsetIndex, offsetsFor } from './freezeMath.js'
+  import { onDestroy } from 'svelte'
+  import { clamp, nearestOffsetIndex } from './freezeMath.js'
+  import {
+    columnMetrics,
+    defaultColumnWidth,
+    indexesForRange,
+    rangeGuardColumns,
+    rangeGuardRows,
+    rangeNeedsUpdate,
+    rowHeight,
+    scrollIdleDelay,
+    visibleRange,
+  } from './virtualTable.js'
 
   let {
     ariaLabel,
-    table,
+    rowCount,
+    columnCount,
+    cellAt,
+    columnWidths,
     frozenRows = $bindable(1),
     frozenCols = $bindable(0),
     adjustable = true,
   } = $props()
 
-  let shell = $state(null)
   let scrollport = $state(null)
-  let tableElement = $state(null)
-  let rowOffsets = $state([0])
-  let colOffsets = $state([0])
-  let scrollLeft = $state(0)
-  let scrollTop = $state(0)
+  let viewportWidth = $state(1)
+  let viewportHeight = $state(1)
+  let rangeScrollLeft = $state(0)
+  let rangeScrollTop = $state(0)
   let handleVisible = $state(false)
   let handleFocused = $state(false)
   let dragging = $state(false)
+  let scrollLeft = 0
+  let scrollTop = 0
+  let rangeFrame = 0
+  let rangeIdleTimer = 0
+  let pendingRangeLeft = 0
+  let pendingRangeTop = 0
 
-  const rows = $derived([...table.headerRows, ...table.bodyRows])
-  const maxRows = $derived(rows.length)
-  const maxCols = $derived(rows[0]?.cells.length ?? 0)
+  const widths = $derived(
+    Array.from({ length: columnCount }, (_, index) => columnWidths?.[index] ?? defaultColumnWidth),
+  )
+  const metrics = $derived(columnMetrics(widths))
+  const rowOffsets = $derived(Array.from({ length: rowCount + 1 }, (_, index) => index * rowHeight))
+  const rowRange = $derived(visibleRange(rangeScrollTop, viewportHeight, rowHeight, rowCount))
+  const columnRange = $derived(
+    columnRangeFor(rangeScrollLeft, viewportWidth, metrics.offsets, columnCount),
+  )
+  const visibleRows = $derived(indexesForRange(rowRange, frozenRows))
+  const visibleColumns = $derived(indexesForRange(columnRange, frozenCols))
   const visibleHandle = $derived(adjustable && (handleVisible || handleFocused || dragging))
-  const handleX = $derived(colOffsets[clamp(0, frozenCols, colOffsets.length - 1)] ?? 0)
+  const handleX = $derived(metrics.offsets[clamp(0, frozenCols, metrics.offsets.length - 1)] ?? 0)
   const handleY = $derived(rowOffsets[clamp(0, frozenRows, rowOffsets.length - 1)] ?? 0)
   const handleLabel = $derived(`Frozen rows ${frozenRows}, frozen columns ${frozenCols}`)
 
+  onDestroy(() => {
+    if (rangeFrame) cancelAnimationFrame(rangeFrame)
+    if (rangeIdleTimer) clearTimeout(rangeIdleTimer)
+  })
+
   $effect(() => {
-    table
-    void measure()
+    if (!scrollport) return
 
-    const observer = new ResizeObserver(() => void measure())
+    const observer = new ResizeObserver(([entry]) => {
+      viewportWidth = entry.contentRect.width
+      viewportHeight = entry.contentRect.height
+    })
 
-    if (tableElement) observer.observe(tableElement)
-    if (scrollport) observer.observe(scrollport)
+    observer.observe(scrollport)
 
     return () => observer.disconnect()
   })
 
-  async function measure() {
-    await tick()
+  function updateScroll(event) {
+    const target = event.currentTarget
 
-    const renderedRows = Array.from(tableElement?.rows ?? [])
-    const firstRowCells = Array.from(renderedRows[0]?.children ?? [])
-
-    rowOffsets = offsetsFor(renderedRows.map((row) => row.getBoundingClientRect().height))
-    colOffsets = offsetsFor(firstRowCells.map((cell) => cell.getBoundingClientRect().width))
-    frozenRows = clamp(0, frozenRows, renderedRows.length)
-    frozenCols = clamp(0, frozenCols, firstRowCells.length)
+    scrollLeft = target.scrollLeft
+    scrollTop = target.scrollTop
+    queueRangeUpdate(target.scrollLeft, target.scrollTop, rangeUpdateNeeded(target.scrollLeft, target.scrollTop))
   }
 
-  function updateScroll() {
-    scrollLeft = scrollport.scrollLeft
-    scrollTop = scrollport.scrollTop
+  function queueRangeUpdate(left, top, immediate = true) {
+    pendingRangeLeft = left
+    pendingRangeTop = top
+
+    if (!immediate) {
+      if (rangeIdleTimer) clearTimeout(rangeIdleTimer)
+      rangeIdleTimer = setTimeout(() => {
+        rangeIdleTimer = 0
+        scheduleRangeUpdate()
+      }, scrollIdleDelay)
+      return
+    }
+
+    if (rangeIdleTimer) {
+      clearTimeout(rangeIdleTimer)
+      rangeIdleTimer = 0
+    }
+    scheduleRangeUpdate()
+  }
+
+  function scheduleRangeUpdate() {
+    if (rangeFrame) return
+
+    rangeFrame = requestAnimationFrame(() => {
+      rangeFrame = 0
+      rangeScrollLeft = pendingRangeLeft
+      rangeScrollTop = pendingRangeTop
+    })
+  }
+
+  function rangeUpdateNeeded(left, top) {
+    return (
+      rangeNeedsUpdate(top, viewportHeight, rowRange, rowOffsets, rangeGuardRows) ||
+      rangeNeedsUpdate(left, viewportWidth, columnRange, metrics.offsets, rangeGuardColumns)
+    )
   }
 
   function updateHover(event) {
@@ -77,7 +137,7 @@
 
     const point = pointerToTablePoint(event)
     frozenRows = nearestOffsetIndex(rowOffsets, point.y)
-    frozenCols = nearestOffsetIndex(colOffsets, point.x)
+    frozenCols = nearestOffsetIndex(metrics.offsets, point.x)
   }
 
   function endDrag(event) {
@@ -88,10 +148,10 @@
   }
 
   function changeFreeze(event) {
-    if (event.key === 'ArrowUp') frozenRows = clamp(0, frozenRows - 1, maxRows)
-    else if (event.key === 'ArrowDown') frozenRows = clamp(0, frozenRows + 1, maxRows)
-    else if (event.key === 'ArrowLeft') frozenCols = clamp(0, frozenCols - 1, maxCols)
-    else if (event.key === 'ArrowRight') frozenCols = clamp(0, frozenCols + 1, maxCols)
+    if (event.key === 'ArrowUp') frozenRows = clamp(0, frozenRows - 1, rowCount)
+    else if (event.key === 'ArrowDown') frozenRows = clamp(0, frozenRows + 1, rowCount)
+    else if (event.key === 'ArrowLeft') frozenCols = clamp(0, frozenCols - 1, columnCount)
+    else if (event.key === 'ArrowRight') frozenCols = clamp(0, frozenCols + 1, columnCount)
     else if (event.key === 'Home') {
       frozenRows = 0
       frozenCols = 0
@@ -121,76 +181,102 @@
     }
   }
 
-  function cellStyle(rowIndex, cellIndex) {
-    const rules = []
+  function rowStyle(rowIndex) {
+    const top = rowOffsets[rowIndex]
+    const position = rowIndex < frozenRows ? 'sticky' : 'absolute'
 
-    if (rowIndex < frozenRows) rules.push(`top: ${rowOffsets[rowIndex] ?? 0}px`)
-    if (cellIndex < frozenCols) rules.push(`left: ${colOffsets[cellIndex] ?? 0}px`)
-
-    return rules.join('; ')
+    return `
+      position: ${position};
+      top: ${top}px;
+      width: ${metrics.totalWidth}px;
+      height: ${rowHeight}px;
+    `
   }
 
-  function cellClass(row, rowIndex, cell, cellIndex) {
+  function cellStyle(columnIndex) {
+    const left = metrics.offsets[columnIndex]
+    const frozenColumn = columnIndex < frozenCols
+    const position = frozenColumn ? 'sticky' : 'absolute'
+    const top = frozenColumn ? '' : 'top: 0;'
+
+    return `
+      position: ${position};
+      left: ${left}px;
+      ${top}
+      width: ${widths[columnIndex]}px;
+      height: ${rowHeight}px;
+    `
+  }
+
+  function cellClass(cell, rowIndex, columnIndex) {
     return {
-      [row.kind]: row.kind,
+      cell: true,
+      [cell.rowKind]: cell.rowKind,
       [cell.kind]: cell.kind,
       'frozen-row': rowIndex < frozenRows,
-      'frozen-col': cellIndex < frozenCols,
-      'frozen-corner': rowIndex < frozenRows && cellIndex < frozenCols,
+      'frozen-col': columnIndex < frozenCols,
+      'frozen-corner': rowIndex < frozenRows && columnIndex < frozenCols,
       'freeze-border-bottom': frozenRows && rowIndex === frozenRows - 1,
-      'freeze-border-right': frozenCols && cellIndex === frozenCols - 1,
+      'freeze-border-right': frozenCols && columnIndex === frozenCols - 1,
+    }
+  }
+
+  function columnRangeFor(offset, viewportSize, offsets, count) {
+    let start = 0
+    let end = count
+
+    while (start < count && offsets[start + 1] < offset) start++
+    while (end > start && offsets[end - 1] > offset + viewportSize) end--
+
+    return {
+      start: clamp(0, start - 2, count),
+      end: clamp(start, end + 2, count),
     }
   }
 </script>
 
-<div class="frozen-table-shell" bind:this={shell}>
+<div class="frozen-table-shell">
   <div
     class="frozen-scroll"
-    role="region"
+    role="table"
     aria-label={ariaLabel}
     bind:this={scrollport}
     onscroll={updateScroll}
     onpointermove={updateHover}
   >
-    <table bind:this={tableElement}>
-      <thead>
-        {#each table.headerRows as row, rowIndex (row.id)}
-          <tr class={row.kind}>
-            {#each row.cells as cell, cellIndex (cell.id)}
-              <th
-                class={cellClass(row, rowIndex, cell, cellIndex)}
-                style={cellStyle(rowIndex, cellIndex)}
-                title={cell.title}
-              >
+    <div
+      class="virtual-canvas"
+      style:width={`${metrics.totalWidth}px`}
+      style:height={`${rowCount * rowHeight}px`}
+    >
+      {#each visibleRows as rowIndex (rowIndex)}
+        <div
+          role="row"
+          class={{ 'virtual-row': true, 'frozen-row-band': rowIndex < frozenRows }}
+          style={rowStyle(rowIndex)}
+        >
+          {#each visibleColumns as columnIndex (columnIndex)}
+            {@const cell = cellAt(rowIndex, columnIndex)}
+            <div
+              role="cell"
+              data-row-index={rowIndex}
+              data-column-index={columnIndex}
+              class={cellClass(cell, rowIndex, columnIndex)}
+              style={cellStyle(columnIndex)}
+              title={cell.title}
+            >
+              {#if cell.segments}
+                {#each cell.segments as segment, segmentIndex (segmentIndex)}
+                  <span class={segment.kind}>{segment.text}</span>
+                {/each}
+              {:else}
                 {cell.text}
-              </th>
-            {/each}
-          </tr>
-        {/each}
-      </thead>
-      <tbody>
-        {#each table.bodyRows as row, bodyRowIndex (row.id)}
-          {@const rowIndex = table.headerRows.length + bodyRowIndex}
-          <tr class={row.kind}>
-            {#each row.cells as cell, cellIndex (cell.id)}
-              <td
-                class={cellClass(row, rowIndex, cell, cellIndex)}
-                style={cellStyle(rowIndex, cellIndex)}
-                title={cell.title}
-              >
-                {#if cell.segments}
-                  {#each cell.segments as segment, segmentIndex (segmentIndex)}
-                    <span class={segment.kind}>{segment.text}</span>
-                  {/each}
-                {:else}
-                  {cell.text}
-                {/if}
-              </td>
-            {/each}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/each}
+    </div>
   </div>
 
   {#if adjustable}
@@ -228,6 +314,9 @@
 <style>
   .frozen-table-shell {
     position: relative;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
     min-height: 0;
     flex: 1;
     background: var(--surface-lowest);
@@ -235,40 +324,49 @@
   }
 
   .frozen-scroll {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
     block-size: 100%;
     overflow: auto;
     background: var(--surface-lowest);
-  }
-
-  table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-    white-space: nowrap;
     font: 12px/16px var(--sans);
     font-variant-numeric: tabular-nums;
   }
 
-  th,
-  td {
-    height: 24px;
-    padding: 2px 8px;
+  .virtual-canvas {
+    position: relative;
+    min-inline-size: 100%;
+    min-block-size: 100%;
+  }
+
+  .virtual-row {
+    left: 0;
+  }
+
+  .frozen-row-band {
+    z-index: 5;
+  }
+
+  .cell {
+    display: inline-block;
+    box-sizing: border-box;
+    vertical-align: top;
+    contain: layout paint style;
+    padding: 3px 8px;
     border-right: 1px solid var(--outline-variant);
     border-bottom: 1px solid var(--outline-variant);
+    overflow: hidden;
     text-align: left;
-    vertical-align: middle;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     background: var(--surface-lowest);
   }
 
-  th {
+  .header-row,
+  .label-cell {
     background: var(--surface-low);
     font-weight: 500;
-  }
-
-  .frozen-row,
-  .frozen-col,
-  .frozen-corner {
-    position: sticky;
   }
 
   .frozen-col {
@@ -319,7 +417,8 @@
   }
 
   .action-cell,
-  .order-cell {
+  .order-cell,
+  .label-cell {
     text-align: center;
     font-family: var(--mono);
     font-weight: 600;

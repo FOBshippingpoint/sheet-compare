@@ -58,6 +58,10 @@ export async function exportStandaloneHtml({ left, right, options }) {
 </html>`;
 }
 
+/**
+ * Standalone reports store source files and choices only; do not record rendered
+ * diff rows, summary chips, or HTML because they must be regenerated on load.
+ */
 export function loadStandaloneState() {
   const element = document.getElementById("table-compare-data");
 
@@ -76,28 +80,25 @@ async function selectedFromState(entry, sheetName) {
   const bytes =
     entry.encoding === "base64" ? base64ToBytes(entry.data) : new TextEncoder().encode(entry.data);
   const file = new File([bytes], entry.name, { type: entry.mime });
-  const loaded = await loadTableFile(file);
-
-  return { file: loaded, sheetName };
+  return loadTableFile(file, sheetName);
 }
 
 async function fileState(selected) {
-  if (selected.file.kind === "csv") {
+  if (selected.kind === "csv") {
     return {
-      name: selected.file.name,
-      mime: selected.file.source.type || "text/csv",
+      name: selected.name,
+      mime: selected.source.type || "text/csv",
       encoding: "text",
-      data: await fileText(selected.file.source),
+      data: await fileText(selected.source),
     };
   }
 
   return {
-    name: selected.file.name,
+    name: selected.name,
     mime:
-      selected.file.source.type ||
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      selected.source.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     encoding: "base64",
-    data: bytesToBase64(new Uint8Array(await fileArrayBuffer(selected.file.source))),
+    data: bytesToBase64(new Uint8Array(await fileArrayBuffer(selected.source))),
   };
 }
 

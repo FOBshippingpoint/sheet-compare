@@ -20,23 +20,18 @@ const jsonOptions = {
  *   size: number,
  *   kind: 'csv' | 'xlsx',
  *   source: File,
- *   workbook: import('xlsx').WorkBook,
- *   sheets: { name: string, rowCount: number, columnCount: number }[]
- * }} LoadedTableFile
- */
-
-/**
- * @typedef {{
- *   file: LoadedTableFile,
- *   sheetName: string
+ *   sheets: { name: string, rowCount: number, columnCount: number }[],
+ *   sheetName: string,
+ *   rows: string[][]
  * }} SelectedTableFile
  */
 
 /**
  * @param {File} file
- * @returns {Promise<LoadedTableFile>}
+ * @param {string} [sheetName]
+ * @returns {Promise<SelectedTableFile>}
  */
-export async function loadTableFile(file) {
+export async function loadTableFile(file, sheetName) {
   const kind = fileKind(file.name);
   const workbook =
     kind === "csv"
@@ -45,13 +40,18 @@ export async function loadTableFile(file) {
 
   if (!workbook.SheetNames.length) throw new Error(`${file.name} has no sheets.`);
 
+  const sheets = workbook.SheetNames.map((name) => sheetInfo(name, workbook.Sheets[name]));
+  const selectedSheetName = sheetName ?? sheets[0].name;
+  const rows = rowsForWorksheet(workbook.Sheets[selectedSheetName], selectedSheetName);
+
   return {
     name: file.name,
     size: file.size,
     kind,
     source: file,
-    workbook,
-    sheets: workbook.SheetNames.map((name) => sheetInfo(name, workbook.Sheets[name])),
+    sheets,
+    sheetName: selectedSheetName,
+    rows,
   };
 }
 
@@ -59,6 +59,8 @@ export async function loadTableFile(file) {
  * @param {File} file
  */
 export async function fileText(file) {
+  if (file.text) return file.text();
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -72,6 +74,8 @@ export async function fileText(file) {
  * @param {File} file
  */
 export async function fileArrayBuffer(file) {
+  if (file.arrayBuffer) return file.arrayBuffer();
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -83,34 +87,28 @@ export async function fileArrayBuffer(file) {
 
 /**
  * @param {SelectedTableFile} selected
- * @param {{ prependHeader?: boolean, prependIndex?: boolean }} [options]
+ * @returns {string[][]}
  */
-export function rowsForSelectedSheet(
-  selected,
-  { prependHeader = false, prependIndex = false } = {},
-) {
-  const rows = XLSX.utils.sheet_to_json(
-    selected.file.workbook.Sheets[selected.sheetName],
-    jsonOptions,
-  );
+export function rowsForSelectedSheet(selected) {
+  return selected.rows;
+}
 
-  if (!rows.length) throw new Error(`${selected.sheetName} has no rows.`);
+/**
+ * Keep the canonical sheet value free of UI labels so daff, export, and preview all
+ * share the same source rows. Spreadsheet headers and row numbers are render-only.
+ *
+ * @param {import('xlsx').WorkSheet} sheet
+ * @param {string} sheetName
+ * @returns {string[][]}
+ */
+export function rowsForWorksheet(sheet, sheetName) {
+  if (!sheet) throw new Error(`${sheetName} was not found.`);
 
-  const colCount = rows[0].length;
+  const rows = XLSX.utils
+    .sheet_to_json(sheet, jsonOptions)
+    .map((row) => row.map((cell) => (cell == null ? "" : String(cell))));
 
-  if (prependIndex) {
-    for (let i = 0; i < rows.length; i++) {
-      rows[i].unshift(i); // Starts from zero for now. Because for an ordinary table with header, daff will NOT include the header row in reorder information (e.g., 1:2 means 1st "data" row moved to 2nd, not header)
-    }
-  }
-
-  if (prependHeader) {
-    const colHeaders = Array.from({ length: colCount }, (_, j) => XLSX.utils.encode_col(j));
-    if (prependIndex) {
-      colHeaders.unshift("");
-    }
-    rows.unshift(colHeaders);
-  }
+  if (!rows.length) throw new Error(`${sheetName} has no rows.`);
 
   return rows;
 }

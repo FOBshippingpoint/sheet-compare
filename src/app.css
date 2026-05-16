@@ -105,8 +105,15 @@ main {
   border-bottom: 1px solid var(--outline-variant);
   background: var(--surface);
 
+  .title-row {
+    min-inline-size: 0;
+    display: inline-flex;
+    align-items: center;
+  }
+
   h1 {
     margin: 0;
+    flex: 0 0 auto;
     font-size: 18px;
     line-height: 24px;
     font-weight: 600;
@@ -145,8 +152,7 @@ main {
   min-inline-size: 112px;
 }
 
-.error,
-.status {
+.error {
   margin: 0;
   padding: 4px 16px;
   border-bottom: 1px solid var(--outline-variant);
@@ -155,11 +161,6 @@ main {
 .error {
   background: var(--error-container);
   color: var(--error);
-}
-
-.status {
-  background: var(--surface-high);
-  color: var(--on-surface-variant);
 }
 
 .upload {
@@ -223,6 +224,7 @@ main {
   --preview-split: 50%;
   --vertical-split: 47%;
 
+  min-width: 0;
   min-height: 0;
   flex: 1 1 0;
   display: grid;
@@ -232,6 +234,7 @@ main {
 
 .previews {
   grid-row: 1;
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(220px, var(--preview-split)) 6px minmax(220px, 1fr);
@@ -396,6 +399,8 @@ output {
 
 .diff {
   grid-row: 4;
+  position: relative;
+  min-width: 0;
   min-height: 0;
   display: flex;
   background: var(--surface-lowest);
@@ -412,6 +417,17 @@ output {
   }
 }
 
+.diff-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface-lowest) 72%, transparent);
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+
 @media (max-width: 760px) {
   main {
     min-height: 100dvh;
@@ -421,8 +437,9 @@ output {
     align-items: flex-start;
     flex-wrap: wrap;
 
-    h1 {
+    .title-row {
       flex: 1 0 120px;
+      flex-wrap: wrap;
     }
 
     nav {

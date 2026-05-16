@@ -20,10 +20,11 @@ describe("loadSampleFiles", () => {
       show_unchanged_columns: false,
       ignore_whitespace: false,
       ignore_case: false,
+      show_order: true,
     });
 
-    expect(sample.left.file.name).toBe("sample-exam-left.csv");
-    expect(sample.right.file.name).toBe("sample-exam-right.csv");
+    expect(sample.left.name).toBe("sample-exam-left.csv");
+    expect(sample.right.name).toBe("sample-exam-right.csv");
     expect(
       result.summary.row_inserts + result.summary.row_deletes + result.summary.row_updates,
     ).toBeGreaterThan(0);
@@ -40,10 +41,11 @@ describe("loadSampleFiles", () => {
       show_unchanged_columns: false,
       ignore_whitespace: false,
       ignore_case: false,
+      show_order: true,
     });
 
-    expect(sample.left.file.name).toBe("sample-registration-left.xlsx");
-    expect(sample.right.file.name).toBe("sample-registration-right.xlsx");
+    expect(sample.left.name).toBe("sample-registration-left.xlsx");
+    expect(sample.right.name).toBe("sample-registration-right.xlsx");
     expect(rows[0]).toEqual([
       "Registration Result",
       "Name",

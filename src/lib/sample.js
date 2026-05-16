@@ -38,9 +38,7 @@ async function examSample() {
 
 async function selectedCsvFile(name, content) {
   const file = new File([content], name, { type: "text/csv;charset=utf-8" });
-  const loaded = await loadTableFile(file);
-
-  return { file: loaded, sheetName: loaded.sheets[0].name };
+  return loadTableFile(file);
 }
 
 async function registrationSample() {
@@ -60,9 +58,7 @@ async function selectedXlsxFile(name, rows) {
   const file = new File([content], name, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const loaded = await loadTableFile(file);
-
-  return { file: loaded, sheetName: loaded.sheets[0].name };
+  return loadTableFile(file);
 }
 
 function registrationLeftRows() {

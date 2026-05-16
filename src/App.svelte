@@ -1,7 +1,6 @@
 <script>
-  import { loadTableFile } from './lib/files.js'
-  import { runDiff } from './lib/diff.js'
-  import { diffRowsToView, hasChanges, summaryChips } from './lib/renderDiff.js'
+  import { onDestroy } from 'svelte'
+  import { summaryChips } from './lib/renderDiff.js'
   import {
     downloadBlob,
     diffRowsToCsv,
@@ -12,21 +11,32 @@
   import SourcePreview from './lib/SourcePreview.svelte'
   import DropZone from './lib/DropZone.svelte'
   import FrozenTable from './lib/FrozenTable.svelte'
-  import { diffViewToTable } from './lib/tableModel.js'
+  import LoadingSpinner from './lib/LoadingSpinner.svelte'
+  import { createTableWorkerClient } from './lib/workerClient.js'
+  import { createDelayedLoader } from './lib/delayedLoader.svelte.js'
+  import { columnWidth } from './lib/virtualTable.js'
+  import { diffCell, diffColumnCount } from './lib/tableCells.js'
 
   const defaultOptions = {
     show_unchanged: false,
     show_unchanged_columns: false,
     ignore_whitespace: false,
     ignore_case: false,
+    show_order: true,
   }
+
+  const tableWorker = createTableWorkerClient()
+  const leftFileLoader = createDelayedLoader()
+  const rightFileLoader = createDelayedLoader()
+  const sampleLoader = createDelayedLoader()
+  const diffLoader = createDelayedLoader()
+  const exportHtmlLoader = createDelayedLoader()
 
   let left = $state(null)
   let right = $state(null)
   let options = $state({ ...defaultOptions })
   let result = $state(null)
   let error = $state('')
-  let busy = $state('')
   let exportingHtml = $state(false)
   let exportedHtml = $state(false)
   let selectedSampleId = $state('')
@@ -37,12 +47,24 @@
 
   let compareLayout = $state(null)
 
+  onDestroy(() => {
+    tableWorker.destroy()
+    resetLoaders()
+  })
+
   const ready = $derived(left && right)
-  const diffView = $derived(result ? diffRowsToView(result.diffRows) : null)
-  const diffTable = $derived(diffView ? diffViewToTable(diffView) : null)
   const chips = $derived(result ? summaryChips(result.summary) : [])
-  const noChanges = $derived(result && !hasChanges(result.summary))
+  const noChanges = $derived(result && !result.summary.different)
   const hasUnsavedFiles = $derived(ready && !exportedHtml && !selectedSampleId)
+  const diffRowCount = $derived(result?.diffRows.length ?? 0)
+  const diffColumnCountValue = $derived(result ? diffColumnCount(result.diffRows) : 0)
+  const diffColumnWidths = $derived(
+    result
+      ? Array.from({ length: diffColumnCountValue }, (_, index) =>
+          columnWidth(result.diffRows, index, false),
+        )
+      : [],
+  )
 
   $effect(() => {
     const state = loadStandaloneState()
@@ -53,39 +75,47 @@
   })
 
   async function loadEmbeddedState(state) {
+    const load = sampleLoader.start()
+    let loaded = false
+
     try {
-      busy = 'Loading embedded files'
-      options = state.options
+      options = { ...defaultOptions, ...state.options }
       left = await state.left
       right = await state.right
       exportedHtml = true
-      result = runDiff(left, right, options)
+      loaded = true
     } catch (reason) {
       error = messageFor(reason)
     } finally {
-      busy = ''
+      sampleLoader.stop(load)
     }
+
+    if (loaded) await runWhenReady()
   }
 
   async function chooseFile(side, file) {
+    const loader = fileLoader(side)
+    const load = loader.start()
+    let response
+
     try {
       error = ''
-      busy = `Loading ${side} file`
 
-      const loaded = await loadTableFile(file)
-      const selected = { file: loaded, sheetName: loaded.sheets[0].name }
-
-      if (side === 'left') left = selected
-      else right = selected
-
-      selectedSampleId = ''
-      exportedHtml = false
-      runWhenReady()
+      response = await tableWorker.parseFile(side, file)
     } catch (reason) {
       error = messageFor(reason)
     } finally {
-      busy = ''
+      loader.stop(load)
     }
+
+    if (!response || response.stale) return
+
+    if (side === 'left') left = response.data.file
+    else right = response.data.file
+
+    selectedSampleId = ''
+    exportedHtml = false
+    await runWhenReady()
   }
 
   function chooseInputFile(side, event) {
@@ -100,32 +130,53 @@
     if (file) void chooseFile(side, file)
   }
 
-  function setSheet(side, event) {
-    if (side === 'left') left = { ...left, sheetName: event.currentTarget.value }
-    else right = { ...right, sheetName: event.currentTarget.value }
+  async function setSheet(side, event) {
+    const current = side === 'left' ? left : right
+    const loader = fileLoader(side)
+    const load = loader.start()
+    let response
 
-    runWhenReady()
+    try {
+      response = await tableWorker.parseFile(side, current.source, event.currentTarget.value)
+    } catch (reason) {
+      error = messageFor(reason)
+      return
+    } finally {
+      loader.stop(load)
+    }
+
+    if (response.stale) return
+
+    if (side === 'left') left = response.data.file
+    else right = response.data.file
+
+    await runWhenReady()
   }
 
   function setOption(name, event) {
     options = { ...options, [name]: event.currentTarget.checked }
-    runWhenReady()
+    void runWhenReady()
   }
 
-  function runWhenReady() {
+  async function runWhenReady() {
     if (!ready) {
       result = null
       return
     }
 
+    const load = diffLoader.start()
+
     try {
-      busy = 'Diffing'
-      result = runDiff(left, right, options)
+      const response = await tableWorker.compareRows(left.rows, right.rows, options)
+
+      if (response.stale) return
+
+      result = response.data.result
     } catch (reason) {
       result = null
       error = messageFor(reason)
     } finally {
-      busy = ''
+      diffLoader.stop(load)
     }
   }
 
@@ -136,7 +187,7 @@
   }
 
   function downloadSource(selected) {
-    downloadBlob(selected.file.name, selected.file.source, selected.file.source.type)
+    downloadBlob(selected.name, selected.source, selected.source.type)
   }
 
   async function loadSample(event) {
@@ -144,25 +195,32 @@
 
     if (!id) return
 
+    const load = sampleLoader.start()
+    let sample
+
     try {
       error = ''
-      busy = 'Loading sample'
       selectedSampleId = id
 
-      const sample = await loadSampleFiles(id)
-      left = sample.left
-      right = sample.right
-      exportedHtml = false
-      result = runDiff(left, right, options)
+      sample = await loadSampleFiles(id)
     } catch (reason) {
       error = messageFor(reason)
     } finally {
-      busy = ''
+      sampleLoader.stop(load)
     }
+
+    if (!sample) return
+
+    left = sample.left
+    right = sample.right
+    exportedHtml = false
+    await runWhenReady()
   }
 
   async function exportHtml() {
     if (!left || !right) return
+
+    const load = exportHtmlLoader.start()
 
     try {
       exportingHtml = true
@@ -174,6 +232,7 @@
       error = messageFor(reason)
     } finally {
       exportingHtml = false
+      exportHtmlLoader.stop(load)
     }
   }
 
@@ -202,7 +261,7 @@
     right = null
     result = null
     error = ''
-    busy = ''
+    resetLoaders()
     exportedHtml = false
     selectedSampleId = ''
     options = { ...defaultOptions }
@@ -242,6 +301,18 @@
     return reason instanceof Error ? reason.message : String(reason)
   }
 
+  function fileLoader(side) {
+    return side === 'left' ? leftFileLoader : rightFileLoader
+  }
+
+  function resetLoaders() {
+    leftFileLoader.destroy()
+    rightFileLoader.destroy()
+    sampleLoader.destroy()
+    diffLoader.destroy()
+    exportHtmlLoader.destroy()
+  }
+
 </script>
 
 <svelte:window onbeforeunload={warnBeforeUnload} />
@@ -252,21 +323,30 @@
 
 <main>
   <header class="topbar">
-    <h1><a href="/" onclick={openChooseFiles}>Sheet Compare</a></h1>
+    <div class="title-row">
+      <h1><a href="/" onclick={openChooseFiles}>Sheet Compare</a></h1>
+    </div>
     <nav aria-label="Top actions">
       <label class="sample-picker">
         Sample
-        <select bind:value={selectedSampleId} onchange={loadSample}>
+        <select bind:value={selectedSampleId} disabled={sampleLoader.pending} onchange={loadSample}>
           <option value="">Load sample...</option>
           {#each sampleOptions as sample (sample.id)}
             <option value={sample.id}>{sample.label}</option>
           {/each}
         </select>
+        {#if sampleLoader.visible}
+          <LoadingSpinner label="Loading sample" />
+        {/if}
       </label>
       {#if ready}
         <button type="button" onclick={exportCsv} disabled={!result}>Export CSV</button>
         <button type="button" class="primary export-html" onclick={exportHtml} disabled={exportingHtml}>
-          {exportingHtml ? 'Exporting...' : 'Export HTML'}
+          {#if exportHtmlLoader.visible}
+            <LoadingSpinner label="Exporting" />
+          {:else}
+            Export HTML
+          {/if}
         </button>
       {/if}
     </nav>
@@ -276,10 +356,6 @@
     <p class="error" role="alert">{error}</p>
   {/if}
 
-  {#if busy}
-    <p class="status" aria-live="polite">{busy}</p>
-  {/if}
-
   {#if !ready}
     <section class="upload" aria-label="Choose files">
       <DropZone
@@ -287,6 +363,8 @@
         description="CSV or XLSX"
         accept=".csv,.xlsx"
         file={left}
+        pending={leftFileLoader.pending}
+        loading={leftFileLoader.visible ? 'Loading' : ''}
         onchange={(event) => chooseInputFile('left', event)}
         ondrop={(event) => dropFile('left', event)}
       />
@@ -296,6 +374,8 @@
         description="CSV or XLSX"
         accept=".csv,.xlsx"
         file={right}
+        pending={rightFileLoader.pending}
+        loading={rightFileLoader.visible ? 'Loading' : ''}
         onchange={(event) => chooseInputFile('right', event)}
         ondrop={(event) => dropFile('right', event)}
       />
@@ -311,6 +391,8 @@
         <SourcePreview
           title="Left"
           input={left}
+          pending={leftFileLoader.pending}
+          loading={leftFileLoader.visible ? 'Loading' : ''}
           onchange={(event) => chooseInputFile('left', event)}
           ondownload={() => downloadSource(left)}
           onsheet={(event) => setSheet('left', event)}
@@ -324,6 +406,8 @@
         <SourcePreview
           title="Right"
           input={right}
+          pending={rightFileLoader.pending}
+          loading={rightFileLoader.visible ? 'Loading' : ''}
           onchange={(event) => chooseInputFile('right', event)}
           ondownload={() => downloadSource(right)}
           onsheet={(event) => setSheet('right', event)}
@@ -337,7 +421,7 @@
         onpointerdown={(event) => startResize('rows', event)}
       ></button>
 
-      {#if result && diffView}
+      {#if result}
         <section class="results-toolbar" aria-label="Compare results">
           <div class="summary-chips" aria-label="Diff summary">
             {#each chips as chip (chip.label)}
@@ -349,6 +433,14 @@
           </div>
 
           <section class="options" aria-label="Compare options">
+            <label>
+              <input
+                type="checkbox"
+                checked={options.show_order}
+                onchange={(event) => setOption('show_order', event)}
+              />
+              Show order
+            </label>
             <label>
               <input
                 type="checkbox"
@@ -384,16 +476,30 @@
           </section>
         </section>
 
+      {/if}
+
+      {#if result || diffLoader.visible}
         <section class="diff" aria-label="Diff table">
-          {#if noChanges}
-            <p class="no-changes">No changes found</p>
-          {:else if diffTable}
-            <FrozenTable
-              ariaLabel="Diff data table"
-              table={diffTable}
-              bind:frozenRows={diffFrozenRows}
-              bind:frozenCols={diffFrozenCols}
-            />
+          {#if result}
+            {#if noChanges}
+              <p class="no-changes">No changes found</p>
+            {:else}
+              <FrozenTable
+                ariaLabel="Diff data table"
+                rowCount={diffRowCount}
+                columnCount={diffColumnCountValue}
+                columnWidths={diffColumnWidths}
+                cellAt={(rowIndex, columnIndex) => diffCell(result.diffRows, rowIndex, columnIndex)}
+                bind:frozenRows={diffFrozenRows}
+                bind:frozenCols={diffFrozenCols}
+              />
+            {/if}
+          {/if}
+
+          {#if diffLoader.visible}
+            <div class="diff-loading">
+              <LoadingSpinner label="Diffing" />
+            </div>
           {/if}
         </section>
       {/if}
