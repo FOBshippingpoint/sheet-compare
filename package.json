@@ -12,7 +12,6 @@
     "fixtures": "uv run tests/fixtures/generate.py",
     "test:unit": "vitest run",
     "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.js",
-    "test:frozen-table": "vitest run --config vitest.browser.config.js tests/e2e/frozen-table-standalone.test.js",
     "test": "bun run test:unit && bun run test:e2e",
     "playground": "bun scripts/playground.js",
     "fmt": "oxfmt"
