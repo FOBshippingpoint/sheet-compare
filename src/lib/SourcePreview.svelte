@@ -1,9 +1,20 @@
-<script>
+<script lang="ts">
   import LoadingSpinner from './LoadingSpinner.svelte'
   import TablePreview from './TablePreview.svelte'
+  import type { SelectedTableFile } from './types'
 
-  let { title, input, pending = false, loading = '', onchange, ondownload, onsheet } = $props()
-  let fileInput = $state(null)
+  type Props = {
+    title: string
+    input: SelectedTableFile
+    pending?: boolean
+    loading?: string
+    onchange: (event: Event) => void
+    ondownload: () => void
+    onsheet: (event: Event) => void
+  }
+
+  let { title, input, pending = false, loading = '', onchange, ondownload, onsheet }: Props = $props()
+  let fileInput = $state<HTMLInputElement | null>(null)
 
   const titleId = $derived(`${title.toLowerCase()}-preview-title`)
 </script>
@@ -28,7 +39,7 @@
     {/if}
     <menu>
       <li>
-        <button type="button" disabled={pending} aria-label={loading || 'Replace File'} onclick={() => fileInput.click()}>
+        <button type="button" disabled={pending} aria-label={loading || 'Replace File'} onclick={() => fileInput?.click()}>
           {#if loading}
             <LoadingSpinner label={loading} />
           {:else}

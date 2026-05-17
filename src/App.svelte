@@ -1,21 +1,23 @@
-<script>
+<script lang="ts">
   import { onDestroy } from 'svelte'
-  import { summaryChips } from './lib/renderDiff.js'
+  import { summaryChips } from './lib/renderDiff'
   import {
     downloadBlob,
     diffRowsToCsv,
     exportStandaloneHtml,
     loadStandaloneState,
-  } from './lib/export.js'
-  import { loadSampleFiles, sampleOptions } from './lib/sample.js'
+  } from './lib/export'
+  import { loadSampleFiles, sampleOptions } from './lib/sample'
   import SourcePreview from './lib/SourcePreview.svelte'
   import DropZone from './lib/DropZone.svelte'
   import FrozenTable from './lib/FrozenTable.svelte'
   import LoadingSpinner from './lib/LoadingSpinner.svelte'
-  import { createTableWorkerClient } from './lib/workerClient.js'
-  import { createDelayedLoader } from './lib/delayedLoader.svelte.js'
-  import { columnWidth } from './lib/virtualTable.js'
-  import { diffCell, diffColumnCount } from './lib/tableCells.js'
+  import { createTableWorkerClient } from './lib/workerClient'
+  import { createDelayedLoader } from './lib/delayedLoader.svelte'
+  import { columnWidth } from './lib/virtualTable'
+  import { diffCell, diffColumnCount } from './lib/tableCells'
+  import type { LoadedStandaloneState } from './lib/export'
+  import type { CompareOptions, DiffResult, SelectedTableFile, SheetSide } from './lib/types'
 
   const defaultOptions = {
     show_unchanged: false,
@@ -23,7 +25,10 @@
     ignore_whitespace: false,
     ignore_case: false,
     show_order: true,
-  }
+  } satisfies CompareOptions
+
+  type CompareOptionName = keyof CompareOptions
+  type ResizeKind = 'columns' | 'rows'
 
   const tableWorker = createTableWorkerClient()
   const leftFileLoader = createDelayedLoader()
@@ -32,10 +37,10 @@
   const diffLoader = createDelayedLoader()
   const exportHtmlLoader = createDelayedLoader()
 
-  let left = $state(null)
-  let right = $state(null)
-  let options = $state({ ...defaultOptions })
-  let result = $state(null)
+  let left = $state<SelectedTableFile | null>(null)
+  let right = $state<SelectedTableFile | null>(null)
+  let options = $state<CompareOptions>({ ...defaultOptions })
+  let result = $state<DiffResult | null>(null)
   let error = $state('')
   let exportingHtml = $state(false)
   let exportedHtml = $state(false)
@@ -45,14 +50,15 @@
   let diffFrozenRows = $state(2)
   let diffFrozenCols = $state(2)
 
-  let compareLayout = $state(null)
+  let compareLayout = $state<HTMLElement | null>(null)
 
   onDestroy(() => {
     tableWorker.destroy()
     resetLoaders()
   })
 
-  const ready = $derived(left && right)
+  const ready = $derived(Boolean(left && right))
+  const selectedFiles = $derived(left && right ? { left, right } : null)
   const chips = $derived(result ? summaryChips(result.summary) : [])
   const noChanges = $derived(result && !result.summary.different)
   const hasUnsavedFiles = $derived(ready && !exportedHtml && !selectedSampleId)
@@ -60,8 +66,8 @@
   const diffColumnCountValue = $derived(result ? diffColumnCount(result.diffRows) : 0)
   const diffColumnWidths = $derived(
     result
-      ? Array.from({ length: diffColumnCountValue }, (_, index) =>
-          columnWidth(result.diffRows, index, false),
+      ? Array.from({ length: diffColumnCount(result.diffRows) }, (_, index) =>
+          columnWidth(result?.diffRows ?? [], index, false),
         )
       : [],
   )
@@ -74,7 +80,7 @@
     }
   })
 
-  async function loadEmbeddedState(state) {
+  async function loadEmbeddedState(state: LoadedStandaloneState) {
     const load = sampleLoader.start()
     let loaded = false
 
@@ -93,7 +99,7 @@
     if (loaded) await runWhenReady()
   }
 
-  async function chooseFile(side, file) {
+  async function chooseFile(side: SheetSide, file: File) {
     const loader = fileLoader(side)
     const load = loader.start()
     let response
@@ -118,26 +124,31 @@
     await runWhenReady()
   }
 
-  function chooseInputFile(side, event) {
-    const file = event.currentTarget.files[0]
+  function chooseInputFile(side: SheetSide, event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
 
     if (file) void chooseFile(side, file)
   }
 
-  function dropFile(side, event) {
-    const file = event.dataTransfer.files[0]
+  function dropFile(side: SheetSide, event: DragEvent) {
+    const file = event.dataTransfer?.files[0]
 
     if (file) void chooseFile(side, file)
   }
 
-  async function setSheet(side, event) {
+  async function setSheet(side: SheetSide, event: Event) {
     const current = side === 'left' ? left : right
+    const select = event.currentTarget as HTMLSelectElement
+
+    if (!current) return
+
     const loader = fileLoader(side)
     const load = loader.start()
     let response
 
     try {
-      response = await tableWorker.parseFile(side, current.source, event.currentTarget.value)
+      response = await tableWorker.parseFile(side, current.source, select.value)
     } catch (reason) {
       error = messageFor(reason)
       return
@@ -153,8 +164,10 @@
     await runWhenReady()
   }
 
-  function setOption(name, event) {
-    options = { ...options, [name]: event.currentTarget.checked }
+  function setOption(name: CompareOptionName, event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+
+    options = { ...options, [name]: input.checked }
     void runWhenReady()
   }
 
@@ -167,6 +180,8 @@
     const load = diffLoader.start()
 
     try {
+      if (!left || !right) return
+
       const response = await tableWorker.compareRows(left.rows, right.rows, options)
 
       if (response.stale) return
@@ -186,12 +201,15 @@
     downloadBlob('table-compare-diff.csv', diffRowsToCsv(result.diffRows), 'text/csv;charset=utf-8')
   }
 
-  function downloadSource(selected) {
+  function downloadSource(selected: SelectedTableFile | null) {
+    if (!selected) return
+
     downloadBlob(selected.name, selected.source, selected.source.type)
   }
 
-  async function loadSample(event) {
-    const id = event.currentTarget.value
+  async function loadSample(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement
+    const id = select.value
 
     if (!id) return
 
@@ -236,14 +254,14 @@
     }
   }
 
-  function warnBeforeUnload(event) {
+  function warnBeforeUnload(event: BeforeUnloadEvent) {
     if (!hasUnsavedFiles) return
 
     event.preventDefault()
     event.returnValue = ''
   }
 
-  function openChooseFiles(event) {
+  function openChooseFiles(event: MouseEvent) {
     event.preventDefault()
 
     if (
@@ -271,12 +289,16 @@
     diffFrozenCols = 2
   }
 
-  function startResize(kind, event) {
-    event.currentTarget.setPointerCapture(event.pointerId)
+  function startResize(kind: ResizeKind, event: PointerEvent) {
+    const handle = event.currentTarget as HTMLElement
+
+    handle.setPointerCapture(event.pointerId)
+
+    if (!compareLayout) return
 
     const rect = compareLayout.getBoundingClientRect()
 
-    function move(pointerEvent) {
+    function move(pointerEvent: PointerEvent) {
       if (kind === 'columns') {
         previewSplit = clamp(25, ((pointerEvent.clientX - rect.left) / rect.width) * 100, 75)
       } else {
@@ -293,15 +315,15 @@
     addEventListener('pointerup', stop)
   }
 
-  function clamp(min, value, max) {
+  function clamp(min: number, value: number, max: number) {
     return Math.min(max, Math.max(min, value))
   }
 
-  function messageFor(reason) {
+  function messageFor(reason: unknown) {
     return reason instanceof Error ? reason.message : String(reason)
   }
 
-  function fileLoader(side) {
+  function fileLoader(side: SheetSide) {
     return side === 'left' ? leftFileLoader : rightFileLoader
   }
 
@@ -380,7 +402,7 @@
         ondrop={(event) => dropFile('right', event)}
       />
     </section>
-  {:else}
+  {:else if selectedFiles}
     <section
       class="compare-layout"
       bind:this={compareLayout}
@@ -390,11 +412,11 @@
       <section class="previews" aria-label="Source previews">
         <SourcePreview
           title="Left"
-          input={left}
+          input={selectedFiles.left}
           pending={leftFileLoader.pending}
           loading={leftFileLoader.visible ? 'Loading' : ''}
           onchange={(event) => chooseInputFile('left', event)}
-          ondownload={() => downloadSource(left)}
+          ondownload={() => downloadSource(selectedFiles.left)}
           onsheet={(event) => setSheet('left', event)}
         />
         <button
@@ -405,11 +427,11 @@
         ></button>
         <SourcePreview
           title="Right"
-          input={right}
+          input={selectedFiles.right}
           pending={rightFileLoader.pending}
           loading={rightFileLoader.visible ? 'Loading' : ''}
           onchange={(event) => chooseInputFile('right', event)}
-          ondownload={() => downloadSource(right)}
+          ondownload={() => downloadSource(selectedFiles.right)}
           onsheet={(event) => setSheet('right', event)}
         />
       </section>
@@ -489,7 +511,7 @@
                 rowCount={diffRowCount}
                 columnCount={diffColumnCountValue}
                 columnWidths={diffColumnWidths}
-                cellAt={(rowIndex, columnIndex) => diffCell(result.diffRows, rowIndex, columnIndex)}
+                cellAt={(rowIndex, columnIndex) => diffCell(result?.diffRows ?? [], rowIndex, columnIndex)}
                 bind:frozenRows={diffFrozenRows}
                 bind:frozenCols={diffFrozenCols}
               />

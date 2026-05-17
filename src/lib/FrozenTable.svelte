@@ -1,6 +1,6 @@
-<script>
+<script lang="ts">
   import { onDestroy } from 'svelte'
-  import { clamp, nearestOffsetIndex } from './freezeMath.js'
+  import { clamp, nearestOffsetIndex } from './freezeMath'
   import {
     columnMetrics,
     defaultColumnWidth,
@@ -11,7 +11,20 @@
     rowHeight,
     scrollIdleDelay,
     visibleRange,
-  } from './virtualTable.js'
+  } from './virtualTable'
+  import type { TableCell } from './types'
+  import type { VisibleRange } from './virtualTable'
+
+  type Props = {
+    ariaLabel: string
+    rowCount: number
+    columnCount: number
+    cellAt: (rowIndex: number, columnIndex: number) => TableCell
+    columnWidths?: number[]
+    frozenRows?: number
+    frozenCols?: number
+    adjustable?: boolean
+  }
 
   let {
     ariaLabel,
@@ -22,9 +35,9 @@
     frozenRows = $bindable(1),
     frozenCols = $bindable(0),
     adjustable = true,
-  } = $props()
+  }: Props = $props()
 
-  let scrollport = $state(null)
+  let scrollport = $state<HTMLDivElement | null>(null)
   let viewportWidth = $state(1)
   let viewportHeight = $state(1)
   let rangeScrollLeft = $state(0)
@@ -73,21 +86,21 @@
     return () => observer.disconnect()
   })
 
-  function updateScroll(event) {
-    const target = event.currentTarget
+  function updateScroll(event: Event) {
+    const target = event.currentTarget as HTMLDivElement
 
     scrollLeft = target.scrollLeft
     scrollTop = target.scrollTop
     queueRangeUpdate(target.scrollLeft, target.scrollTop, rangeUpdateNeeded(target.scrollLeft, target.scrollTop))
   }
 
-  function queueRangeUpdate(left, top, immediate = true) {
+  function queueRangeUpdate(left: number, top: number, immediate = true) {
     pendingRangeLeft = left
     pendingRangeTop = top
 
     if (!immediate) {
       if (rangeIdleTimer) clearTimeout(rangeIdleTimer)
-      rangeIdleTimer = setTimeout(() => {
+      rangeIdleTimer = window.setTimeout(() => {
         rangeIdleTimer = 0
         scheduleRangeUpdate()
       }, scrollIdleDelay)
@@ -111,28 +124,28 @@
     })
   }
 
-  function rangeUpdateNeeded(left, top) {
+  function rangeUpdateNeeded(left: number, top: number) {
     return (
       rangeNeedsUpdate(top, viewportHeight, rowRange, rowOffsets, rangeGuardRows) ||
       rangeNeedsUpdate(left, viewportWidth, columnRange, metrics.offsets, rangeGuardColumns)
     )
   }
 
-  function updateHover(event) {
+  function updateHover(event: PointerEvent) {
     if (dragging || !adjustable) return
 
     const point = pointerToScrollportPoint(event)
     handleVisible = Math.hypot(point.x - handleX, point.y - handleY) < 40
   }
 
-  function startDrag(event) {
+  function startDrag(event: PointerEvent) {
     dragging = true
     handleVisible = true
-    event.currentTarget.setPointerCapture(event.pointerId)
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
     event.preventDefault()
   }
 
-  function drag(event) {
+  function drag(event: PointerEvent) {
     if (!dragging) return
 
     const point = pointerToTablePoint(event)
@@ -140,14 +153,14 @@
     frozenCols = nearestOffsetIndex(metrics.offsets, point.x)
   }
 
-  function endDrag(event) {
+  function endDrag(event: PointerEvent) {
     if (!dragging) return
 
     dragging = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
+    ;(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId)
   }
 
-  function changeFreeze(event) {
+  function changeFreeze(event: KeyboardEvent) {
     if (event.key === 'ArrowUp') frozenRows = clamp(0, frozenRows - 1, rowCount)
     else if (event.key === 'ArrowDown') frozenRows = clamp(0, frozenRows + 1, rowCount)
     else if (event.key === 'ArrowLeft') frozenCols = clamp(0, frozenCols - 1, columnCount)
@@ -163,7 +176,9 @@
     event.preventDefault()
   }
 
-  function pointerToScrollportPoint(event) {
+  function pointerToScrollportPoint(event: PointerEvent) {
+    if (!scrollport) return { x: 0, y: 0 }
+
     const rect = scrollport.getBoundingClientRect()
 
     return {
@@ -172,7 +187,7 @@
     }
   }
 
-  function pointerToTablePoint(event) {
+  function pointerToTablePoint(event: PointerEvent) {
     const point = pointerToScrollportPoint(event)
 
     return {
@@ -181,7 +196,7 @@
     }
   }
 
-  function rowStyle(rowIndex) {
+  function rowStyle(rowIndex: number) {
     const top = rowOffsets[rowIndex]
     const position = rowIndex < frozenRows ? 'sticky' : 'absolute'
 
@@ -193,7 +208,7 @@
     `
   }
 
-  function cellStyle(columnIndex) {
+  function cellStyle(columnIndex: number) {
     const left = metrics.offsets[columnIndex]
     const frozenColumn = columnIndex < frozenCols
     const position = frozenColumn ? 'sticky' : 'absolute'
@@ -208,10 +223,10 @@
     `
   }
 
-  function cellClass(cell, rowIndex, columnIndex) {
+  function cellClass(cell: TableCell, rowIndex: number, columnIndex: number) {
     return {
       cell: true,
-      [cell.rowKind]: cell.rowKind,
+      ...(cell.rowKind ? { [cell.rowKind]: true } : {}),
       [cell.kind]: cell.kind,
       'frozen-row': rowIndex < frozenRows,
       'frozen-col': columnIndex < frozenCols,
@@ -221,7 +236,12 @@
     }
   }
 
-  function columnRangeFor(offset, viewportSize, offsets, count) {
+  function columnRangeFor(
+    offset: number,
+    viewportSize: number,
+    offsets: number[],
+    count: number,
+  ): VisibleRange {
     let start = 0
     let end = count
 

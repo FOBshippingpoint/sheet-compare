@@ -1,9 +1,10 @@
-<script>
+<script lang="ts">
   import FrozenTable from './FrozenTable.svelte'
-  import { columnWidth } from './virtualTable.js'
-  import { sourceCell, sourceColumnCount } from './tableCells.js'
+  import { columnWidth } from './virtualTable'
+  import { sourceCell, sourceColumnCount } from './tableCells'
+  import type { TableRows } from './types'
 
-  let { rows } = $props()
+  let { rows }: { rows: TableRows } = $props()
   let frozenRows = $state(1)
   let frozenCols = $state(1)
 

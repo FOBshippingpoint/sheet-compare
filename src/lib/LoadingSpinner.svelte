@@ -1,5 +1,5 @@
-<script>
-  let { label } = $props()
+<script lang="ts">
+  let { label }: { label: string } = $props()
 </script>
 
 <span class="loading-spinner" role="status" aria-live="polite" aria-label={label}>

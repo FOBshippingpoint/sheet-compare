@@ -1,10 +1,11 @@
-<script>
+<script lang="ts">
   import FrozenTable from '../../src/lib/FrozenTable.svelte'
-  import { defaultColumnWidth } from '../../src/lib/virtualTable.js'
+  import { defaultColumnWidth } from '../../src/lib/virtualTable'
+  import type { TableCell } from '../../src/lib/types'
 
   const rowCount = 800
   const columnCount = 90
-  let { initialFrozenRows = 1, initialFrozenCols = 1 } = $props()
+  let { initialFrozenRows = 1, initialFrozenCols = 1 }: { initialFrozenRows?: number; initialFrozenCols?: number } = $props()
   let frozenRows = $state(1)
   let frozenCols = $state(1)
   let initialized = false
@@ -21,7 +22,7 @@
     initialized = true
   })
 
-  function cellAt(rowIndex, columnIndex) {
+  function cellAt(rowIndex: number, columnIndex: number): TableCell {
     const header = rowIndex === 0
     const label = columnIndex === 0
     const text = header

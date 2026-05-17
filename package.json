@@ -11,19 +11,24 @@
     "preview": "vite preview",
     "fixtures": "uv run tests/fixtures/generate.py",
     "test:unit": "vitest run",
-    "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.js",
+    "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.ts",
     "test": "bun run test:unit && bun run test:e2e",
-    "playground": "bun scripts/playground.js",
-    "fmt": "oxfmt"
+    "playground": "bun scripts/playground.ts",
+    "fmt": "oxfmt",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.12.3",
     "@vitest/browser-playwright": "^4.1.5",
     "daff": "^1.4.2",
     "jsdom": "^27.3.0",
     "oxfmt": "^0.48.0",
-    "svelte": "^5.55.4",
-    "vite": "^8.0.10",
+    "svelte": "^5.55.5",
+    "svelte-check": "^4.4.8",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
     "vitest": "^4.0.15",
     "xlsx": "^0.18.5"
   }

@@ -1,8 +1,20 @@
-<script>
+<script lang="ts">
   import LoadingSpinner from './LoadingSpinner.svelte'
+  import type { SelectedTableFile } from './types'
 
-  let { title, description, accept, file, pending = false, loading = '', onchange, ondrop } = $props()
-  let fileInput = $state(null)
+  type Props = {
+    title: string
+    description: string
+    accept: string
+    file: SelectedTableFile | null
+    pending?: boolean
+    loading?: string
+    onchange: (event: Event) => void
+    ondrop: (event: DragEvent) => void
+  }
+
+  let { title, description, accept, file, pending = false, loading = '', onchange, ondrop }: Props = $props()
+  let fileInput = $state<HTMLInputElement | null>(null)
   let dragging = $state(false)
 </script>
 
@@ -29,7 +41,7 @@
   {:else}
     <p>{description}</p>
   {/if}
-  <button type="button" disabled={pending} aria-label={loading || 'Browse Files'} onclick={() => fileInput.click()}>
+  <button type="button" disabled={pending} aria-label={loading || 'Browse Files'} onclick={() => fileInput?.click()}>
     {#if loading}
       <LoadingSpinner label={loading} />
     {:else}
