@@ -12,7 +12,6 @@
     "vite.config.ts",
     "vitest.config.ts",
     "vitest.browser.config.ts",
-    "svelte.config.ts",
     "scripts/**/*.ts",
     "src/**/*.d.ts",
     "src/types/**/*.d.ts",
