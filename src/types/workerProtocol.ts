@@ -41,27 +41,26 @@ export type TableWorkerRequest<Type extends TableWorkerMessageType = TableWorker
   } & TableWorkerMessages[Key]["request"];
 }[Type];
 
-export type TableWorkerRequestInput<
-  Type extends TableWorkerMessageType = TableWorkerMessageType,
-> = {
-  [Key in Type]: Omit<TableWorkerRequest<Key>, "requestId">;
-}[Type];
+export type TableWorkerRequestInput<Type extends TableWorkerMessageType = TableWorkerMessageType> =
+  {
+    [Key in Type]: Omit<TableWorkerRequest<Key>, "requestId">;
+  }[Type];
 
-export type TableWorkerDataResponse<Type extends TableWorkerMessageType = TableWorkerMessageType> = {
-  [Key in Type]: {
-    type: Key;
+export type TableWorkerDataResponse<Type extends TableWorkerMessageType = TableWorkerMessageType> =
+  {
+    [Key in Type]: {
+      type: Key;
+      requestId: WorkerRequestId;
+    } & TableWorkerMessages[Key]["response"];
+  }[Type];
+
+export type TableWorkerErrorResponse<Type extends TableWorkerMessageType = TableWorkerMessageType> =
+  {
+    type: Type;
     requestId: WorkerRequestId;
-  } & TableWorkerMessages[Key]["response"];
-}[Type];
-
-export type TableWorkerErrorResponse<
-  Type extends TableWorkerMessageType = TableWorkerMessageType,
-> = {
-  type: Type;
-  requestId: WorkerRequestId;
-  side?: Type extends "parse-file" ? SheetSide : never;
-  error: string;
-};
+    side?: Type extends "parse-file" ? SheetSide : never;
+    error: string;
+  };
 
 export type TableWorkerResponse<Type extends TableWorkerMessageType = TableWorkerMessageType> =
   | TableWorkerDataResponse<Type>
