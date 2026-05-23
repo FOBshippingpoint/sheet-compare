@@ -38,7 +38,9 @@ describe("exportStandaloneHtml", () => {
 
   it("serializes a standalone document from DOM nodes", async () => {
     document.head.innerHTML = '<link rel="stylesheet" href="data:text/css,.app{}">';
-    document.body.innerHTML = '<script type="module" src="data:text/javascript,export{}"></script>';
+    document.body.innerHTML =
+      '<script src="data:text/javascript,ignored"></script>' +
+      '<script type="module" src="data:text/javascript,export{}"></script>';
 
     const html = await exportStandaloneHtml({
       left: selectedCsv("left.csv", "id\n1"),
@@ -51,7 +53,7 @@ describe("exportStandaloneHtml", () => {
     expect(exported.documentElement.lang).toBe("zh-TW");
     expect(exported.getElementById("app")).not.toBeNull();
     expect(exported.querySelector("style")).toBeTruthy();
-    expect(exported.querySelector("script")).toBeTruthy();
+    expect(exported.querySelector('script[type="module"]')?.textContent).toBe("export{}");
 
     const state = JSON.parse(exported.getElementById("table-compare-data")?.textContent ?? "") as {
       locale: string;
@@ -62,5 +64,23 @@ describe("exportStandaloneHtml", () => {
     expect(state.locale).toBe("zh-TW");
     expect(state.left.name).toBe("left.csv");
     expect(state.right.name).toBe("right.csv");
+  });
+
+  it("serializes an already-inline standalone document", async () => {
+    document.head.innerHTML = "<style>.app{color:red}</style>";
+    document.body.innerHTML = '<script type="module">export const app = true;</script>';
+
+    const html = await exportStandaloneHtml({
+      left: selectedCsv("left.csv", "id\n1"),
+      right: selectedCsv("right.csv", "id\n2"),
+      options,
+      locale: "en",
+    });
+    const exported = new DOMParser().parseFromString(html, "text/html");
+
+    expect(exported.querySelector("style")?.textContent).toBe(".app{color:red}");
+    expect(exported.querySelector('script[type="module"]')?.textContent).toBe(
+      "export const app = true;",
+    );
   });
 });

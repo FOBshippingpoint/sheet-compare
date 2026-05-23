@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { summaryChips } from './lib/renderDiff'
   import {
     downloadBlob,
@@ -40,6 +40,7 @@
   const diffLoader = createDelayedLoader()
   const exportHtmlLoader = createDelayedLoader()
   const embeddedState = loadStandaloneState()
+  const logoHref = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')?.href ?? '/favicon.svg'
 
   let left = $state<SelectedTableFile | null>(null)
   let right = $state<SelectedTableFile | null>(null)
@@ -86,10 +87,8 @@
         )
       : [],
   )
-  $effect(() => {
-    if (embeddedState) {
-      void loadEmbeddedState(embeddedState)
-    }
+  onMount(() => {
+    if (embeddedState) void loadEmbeddedState(embeddedState)
   })
 
   async function loadEmbeddedState(state: LoadedStandaloneState) {
@@ -211,7 +210,7 @@
   function exportCsv() {
     if (!result) return
 
-    downloadBlob('table-compare-diff.csv', diffRowsToCsv(result.diffRows), 'text/csv;charset=utf-8')
+    downloadBlob('sheet-compare-diff.csv', diffRowsToCsv(result.diffRows), 'text/csv;charset=utf-8')
   }
 
   function downloadSource(selected: SelectedTableFile | null) {
@@ -262,7 +261,7 @@
         options,
         locale: i18n.locale,
       })
-      downloadBlob('table-compare.html', html, 'text/html;charset=utf-8')
+      downloadBlob('sheet-compare.html', html, 'text/html;charset=utf-8')
       exportedHtml = true
     } catch (reason) {
       error = messageFor(reason)
@@ -387,7 +386,7 @@
   {#if i18nReady}
   <header class="topbar">
     <div class="title-row">
-      <img class="logo" src="/favicon.svg" alt="" aria-hidden="true" />
+      <img class="logo" src={logoHref} alt="" aria-hidden="true" />
       <h1><a href="/" onclick={openChooseFiles}>{t('Sheet Compare')}</a></h1>
     </div>
     <nav aria-label={t('Top actions')}>

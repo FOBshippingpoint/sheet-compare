@@ -7,6 +7,7 @@ import type {
   WorkerClientResult,
   WorkerClientResultFor,
 } from "../types/workerProtocol";
+import TableWorker from "./table.worker.ts?worker&inline";
 import type { CompareOptions, SheetSide, TableRows } from "./types";
 
 type PendingRequest = {
@@ -16,9 +17,7 @@ type PendingRequest = {
 };
 
 export function createTableWorkerClient(): TableWorkerClient {
-  return createBrowserWorkerClient(
-    new Worker(new URL("./table.worker.ts", import.meta.url), { type: "module" }),
-  );
+  return createBrowserWorkerClient(new TableWorker());
 }
 
 export function createBrowserWorkerClient(worker: Worker): TableWorkerClient {

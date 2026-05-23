@@ -1,12 +1,15 @@
 import { i18n as lingui } from "@lingui/core";
 import type { Messages } from "@lingui/core";
 import { createContext } from "svelte";
+import { messages as enMessages } from "./locales/en.po";
+import { messages as zhTwMessages } from "./locales/zh-TW.po";
 import { resolveLocale, type SupportedLocale } from "./locale";
 
 const storageKey = "sheet-compare-locale";
 
-type CatalogModule = {
-  messages: Messages;
+const catalogs: Record<SupportedLocale, Messages> = {
+  en: enMessages,
+  "zh-TW": zhTwMessages,
 };
 
 export type I18nContext = {
@@ -33,11 +36,10 @@ class I18nRuntime implements I18nContext {
 
   async activate(locale: SupportedLocale) {
     const activation = ++this.#activation;
-    const catalog = (await import(`./locales/${locale}.po`)) as CatalogModule;
 
     if (activation !== this.#activation) return;
 
-    lingui.loadAndActivate({ locale, messages: catalog.messages });
+    lingui.loadAndActivate({ locale, messages: catalogs[locale] });
     this.locale = locale;
     localStorage?.setItem(storageKey, locale);
     if (document) {

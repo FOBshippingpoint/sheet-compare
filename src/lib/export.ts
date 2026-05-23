@@ -1,14 +1,11 @@
 import * as XLSX from "xlsx";
-import { fileArrayBuffer, fileText, loadTableFile } from "./files";
+import { loadTableFile } from "./files";
 import type { SupportedLocale } from "./i18n/locale";
 import type { CompareOptions, SelectedTableFile, TableRows } from "./types";
-
-type Encoding = "text" | "base64";
 
 type StandaloneFileState = {
   name: string;
   mime: string;
-  encoding: Encoding;
   data: string;
 };
 
@@ -106,68 +103,96 @@ async function selectedFromState(
   entry: StandaloneFileState,
   sheetName: string,
 ): Promise<SelectedTableFile> {
-  const bytes: Uint8Array<ArrayBuffer> =
-    entry.encoding === "base64" ? base64ToBytes(entry.data) : new TextEncoder().encode(entry.data);
-  const file = new File([new Blob([bytes])], entry.name, { type: entry.mime });
+  const file = new File([await urlToBlob(entry.data)], entry.name, { type: entry.mime });
+
   return loadTableFile(file, sheetName);
 }
 
 async function fileState(selected: SelectedTableFile): Promise<StandaloneFileState> {
-  if (selected.kind === "csv") {
-    return {
-      name: selected.name,
-      mime: selected.source.type || "text/csv",
-      encoding: "text",
-      data: await fileText(selected.source),
-    };
-  }
-
   return {
     name: selected.name,
     mime:
-      selected.source.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    encoding: "base64",
-    data: bytesToBase64(new Uint8Array(await fileArrayBuffer(selected.source))),
+      selected.source.type ||
+      (selected.kind === "csv"
+        ? "text/csv"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    data: await blobToDataUrl(selected.source),
   };
 }
 
 async function inlineAssets(html: Document): Promise<void> {
-  const styles = await Promise.all(
+  html.head.append(...(await inlineIcons(html)));
+  html.head.append(...(await inlineStyles(html)));
+  html.body.append(...(await inlineScripts(html)));
+}
+
+async function inlineIcons(html: Document): Promise<HTMLLinkElement[]> {
+  return Promise.all(
+    [...document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"][href]')].map(async (link) => {
+      const icon = html.createElement("link");
+
+      icon.rel = link.rel;
+      icon.type = link.type;
+      icon.href = await anyUrlToDataUrl(link.href);
+      return icon;
+    }),
+  );
+}
+
+async function inlineStyles(html: Document): Promise<HTMLStyleElement[]> {
+  return [
+    ...[...document.querySelectorAll<HTMLStyleElement>("style")].map((style) => {
+      const inlineStyle = html.createElement("style");
+
+      inlineStyle.textContent = style.textContent;
+      return inlineStyle;
+    }),
+    ...(await Promise.all(
     [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')].map(async (link) => {
       const style = html.createElement("style");
 
       style.textContent = await fetch(link.href).then((response) => response.text());
       return style;
     }),
-  );
-  const scripts = await Promise.all(
-    [...document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]')].map(
-      async (script) => {
-        const inlineScript = html.createElement("script");
-
-        inlineScript.type = "module";
-        inlineScript.textContent = escapeScriptText(
-          await fetch(script.src).then((response) => response.text()),
-        );
-        return inlineScript;
-      },
-    ),
-  );
-
-  html.head.append(...styles);
-  html.body.append(...scripts);
+    )),
+  ];
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
+async function inlineScripts(html: Document): Promise<HTMLScriptElement[]> {
+  return Promise.all(
+    [
+      ...document.querySelectorAll<HTMLScriptElement>(
+        "script[data-standalone-entry], script[type='module']",
+      ),
+    ].map(async (script) => {
+      const inlineScript = html.createElement("script");
 
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-
-  return btoa(binary);
+      inlineScript.type = "module";
+      inlineScript.textContent = escapeScriptText(
+        script.src ? await fetch(script.src).then((response) => response.text()) : script.textContent,
+      );
+      return inlineScript;
+    }),
+  );
 }
 
-function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
-  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+export async function anyUrlToDataUrl(url: string): Promise<string> {
+  return blobToDataUrl(await urlToBlob(url));
+}
+
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  const reader = new FileReader();
+
+  return new Promise((resolve) => {
+    reader.addEventListener("load", () => {
+      resolve(reader.result as string);
+    });
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function urlToBlob(url: string): Promise<Blob> {
+  return fetch(url).then((response) => response.blob());
 }
 
 function appMount(html: Document): HTMLDivElement {

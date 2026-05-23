@@ -15,6 +15,7 @@ let app: unknown = null;
 
 export function mountApp(locale: SupportedLocale = "en") {
   localStorage.setItem("sheet-compare-locale", locale);
+  document.head.append(standaloneEntry());
   app = mountComponentUntyped(App, { target: document.body });
 }
 
@@ -32,4 +33,14 @@ afterEach(() => {
   app = null;
   localStorage.removeItem("sheet-compare-locale");
   document.body.replaceChildren();
+  document.querySelector("[data-standalone-entry]")?.remove();
 });
+
+function standaloneEntry(): HTMLScriptElement {
+  const script = document.createElement("script");
+
+  script.dataset.standaloneEntry = "";
+  script.src = "/src/main.ts";
+  script.type = "text/plain";
+  return script;
+}
