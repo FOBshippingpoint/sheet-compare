@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import FrozenTable from '../../src/lib/FrozenTable.svelte'
+  import { createI18n, setI18n } from '../../src/lib/i18n/i18n.svelte'
   import { defaultColumnWidth } from '../../src/lib/virtualTable'
   import type { TableCell } from '../../src/lib/types'
 
@@ -8,7 +10,18 @@
   let { initialFrozenRows = 1, initialFrozenCols = 1 }: { initialFrozenRows?: number; initialFrozenCols?: number } = $props()
   let frozenRows = $state(1)
   let frozenCols = $state(1)
+  let i18nReady = $state(false)
   let initialized = false
+
+  const i18n = createI18n('en')
+  setI18n(i18n)
+  void i18n.activate('en').then(() => {
+    i18nReady = true
+  })
+
+  onDestroy(() => {
+    i18n.destroy()
+  })
 
   const columnWidths = Array.from({ length: columnCount }, (_, index) =>
     index === 0 ? 56 : defaultColumnWidth + 96,
@@ -43,6 +56,7 @@
 </script>
 
 <section aria-label="Frozen table harness">
+  {#if i18nReady}
   <FrozenTable
     ariaLabel="Standalone frozen table"
     {rowCount}
@@ -52,6 +66,7 @@
     bind:frozenRows
     bind:frozenCols
   />
+  {/if}
 </section>
 
 <style>

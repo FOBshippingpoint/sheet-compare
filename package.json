@@ -5,19 +5,27 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:frozen-table": "vite --host 127.0.0.1",
-    "build": "vite build",
-    "preview": "vite preview",
-    "fixtures": "uv run tests/fixtures/generate.py",
-    "test:unit": "vitest run",
-    "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.ts",
-    "test": "bun run test:unit && bun run test:e2e",
-    "playground": "bun scripts/playground.ts",
-    "fmt": "oxfmt",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
+    "h": "bun scripts/help.ts ## Show help",
+    "dev": "vite ## Start dev server",
+    "build": "vite build ## Build to static site",
+    "preview": "vite preview ## Preview built site",
+    "fixtures": "uv run tests/fixtures/generate.py ## Generate fixtures for tests",
+    "test:unit": "vitest run ## Run unit tests",
+    "test:e2e": "bun run fixtures && vitest run --config vitest.browser.config.ts ## Run integratgion tests",
+    "test": "bun run test:unit && bun run test:e2e ## Run unit & integration tests",
+    "i18n:compile": "lingui compile --typescript ## Compile messages.po file to messages.ts file",
+    "playground": "bun scripts/playground.ts ## Run playground (for AI)",
+    "fmt": "oxfmt ## Format code",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json ## Run svelte / typescript checks"
+  },
+  "dependencies": {
+    "@lingui/core": "^6.0.1"
   },
   "devDependencies": {
+    "@lingui/cli": "^6.0.1",
+    "@lingui/conf": "^6.0.1",
+    "@lingui/format-po": "^6.0.1",
+    "@lingui/vite-plugin": "^6.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.12.3",

@@ -11,13 +11,16 @@
   import SourcePreview from './lib/SourcePreview.svelte'
   import DropZone from './lib/DropZone.svelte'
   import FrozenTable from './lib/FrozenTable.svelte'
+  import LanguageDropdown from './lib/LanguageDropdown.svelte'
   import LoadingSpinner from './lib/LoadingSpinner.svelte'
   import { createTableWorkerClient } from './lib/workerClient'
   import { createDelayedLoader } from './lib/delayedLoader.svelte'
+  import { createI18n, setI18n } from './lib/i18n/i18n.svelte'
   import { columnWidth } from './lib/virtualTable'
   import { diffCell, diffColumnCount } from './lib/tableCells'
   import type { LoadedStandaloneState } from './lib/export'
-  import type { CompareOptions, DiffResult, SelectedTableFile, SheetSide } from './lib/types'
+  import type { CompareOptions, DiffResult, SelectedTableFile, SheetSide, SummaryChipLabel } from './lib/types'
+  import type { SampleId } from './lib/sample'
 
   const defaultOptions = {
     show_unchanged: false,
@@ -36,6 +39,7 @@
   const sampleLoader = createDelayedLoader()
   const diffLoader = createDelayedLoader()
   const exportHtmlLoader = createDelayedLoader()
+  const embeddedState = loadStandaloneState()
 
   let left = $state<SelectedTableFile | null>(null)
   let right = $state<SelectedTableFile | null>(null)
@@ -45,6 +49,7 @@
   let exportingHtml = $state(false)
   let exportedHtml = $state(false)
   let selectedSampleId = $state('')
+  let i18nReady = $state(false)
   let previewSplit = $state(50)
   let verticalSplit = $state(47)
   let diffFrozenRows = $state(2)
@@ -52,7 +57,17 @@
 
   let compareLayout = $state<HTMLElement | null>(null)
 
+  const i18n = createI18n(embeddedState?.locale)
+  const t = i18n.t.bind(i18n)
+  setI18n(i18n)
+  void i18n.activate(i18n.locale).then(() => {
+    i18nReady = true
+  }).catch((reason) => {
+    error = messageFor(reason)
+  })
+
   onDestroy(() => {
+    i18n.destroy()
     tableWorker.destroy()
     resetLoaders()
   })
@@ -71,12 +86,9 @@
         )
       : [],
   )
-
   $effect(() => {
-    const state = loadStandaloneState()
-
-    if (state) {
-      void loadEmbeddedState(state)
+    if (embeddedState) {
+      void loadEmbeddedState(embeddedState)
     }
   })
 
@@ -86,6 +98,7 @@
 
     try {
       options = { ...defaultOptions, ...state.options }
+      if (state.locale) await i18n.activate(state.locale)
       left = await state.left
       right = await state.right
       exportedHtml = true
@@ -243,7 +256,12 @@
     try {
       exportingHtml = true
 
-      const html = await exportStandaloneHtml({ left, right, options })
+      const html = await exportStandaloneHtml({
+        left,
+        right,
+        options,
+        locale: i18n.locale,
+      })
       downloadBlob('table-compare.html', html, 'text/html;charset=utf-8')
       exportedHtml = true
     } catch (reason) {
@@ -266,7 +284,7 @@
 
     if (
       hasUnsavedFiles &&
-      !window.confirm('Discard current files? Export first if you want to keep this comparison.')
+      !window.confirm(t('Discard current work?'))
     ) {
       return
     }
@@ -335,39 +353,64 @@
     exportHtmlLoader.destroy()
   }
 
+  function sampleLabel(id: SampleId) {
+    if (id === 'registration-xlsx') return t('Registration results XLSX')
+    return t('Exam results CSV')
+  }
+
+  function summaryLabel(label: SummaryChipLabel) {
+    const labelMap: Record<SummaryChipLabel, string> = {
+      rowInserts: 'row inserts',
+      rowDeletes: 'row deletes',
+      rowUpdates: 'row updates',
+      rowReorders: 'row reorders',
+      columnInserts: 'column inserts',
+      columnDeletes: 'column deletes',
+      columnRenames: 'column renames',
+      columnReorders: 'column reorders',
+    };
+
+    return t(labelMap[label]);
+  }
+
+  const countFormat = $derived(new Intl.NumberFormat(i18n.locale))
+
 </script>
 
 <svelte:window onbeforeunload={warnBeforeUnload} />
 
 <svelte:head>
-  <title>Sheet Compare</title>
+  <title>{i18nReady ? t('Sheet Compare') : 'Sheet Compare'}</title>
 </svelte:head>
 
 <main>
+  {#if i18nReady}
   <header class="topbar">
     <div class="title-row">
-      <h1><a href="/" onclick={openChooseFiles}>Sheet Compare</a></h1>
+      <img class="logo" src="/favicon.svg" alt="" aria-hidden="true" />
+      <h1><a href="/" onclick={openChooseFiles}>{t('Sheet Compare')}</a></h1>
     </div>
-    <nav aria-label="Top actions">
+    <nav aria-label={t('Top actions')}>
+      <LanguageDropdown />
       <label class="sample-picker">
-        Sample
+        {t('Sample')}
         <select bind:value={selectedSampleId} disabled={sampleLoader.pending} onchange={loadSample}>
-          <option value="">Load sample...</option>
+          <option value="">{t('Load sample...')}</option>
           {#each sampleOptions as sample (sample.id)}
-            <option value={sample.id}>{sample.label}</option>
+            <option value={sample.id}>{sampleLabel(sample.id)}</option>
           {/each}
         </select>
         {#if sampleLoader.visible}
-          <LoadingSpinner label="Loading sample" />
+          <LoadingSpinner label={t('Loading sample')} />
         {/if}
       </label>
       {#if ready}
-        <button type="button" onclick={exportCsv} disabled={!result}>Export CSV</button>
+        <button type="button" onclick={exportCsv} disabled={!result}>{t('Export CSV')}</button>
         <button type="button" class="primary export-html" onclick={exportHtml} disabled={exportingHtml}>
           {#if exportHtmlLoader.visible}
-            <LoadingSpinner label="Exporting" />
+            <LoadingSpinner label={t('Exporting')} />
           {:else}
-            Export HTML
+            {t('Export HTML')}
           {/if}
         </button>
       {/if}
@@ -379,25 +422,25 @@
   {/if}
 
   {#if !ready}
-    <section class="upload" aria-label="Choose files">
+    <section class="upload" aria-label={t('Choose files')}>
       <DropZone
-        title="Left Sheet File"
-        description="CSV or XLSX"
+        title={t('Left Sheet File')}
+        description={t('CSV or XLSX')}
         accept=".csv,.xlsx"
         file={left}
         pending={leftFileLoader.pending}
-        loading={leftFileLoader.visible ? 'Loading' : ''}
+        loading={leftFileLoader.visible ? t('Loading') : ''}
         onchange={(event) => chooseInputFile('left', event)}
         ondrop={(event) => dropFile('left', event)}
       />
-      <p class="versus">vs.</p>
+      <p class="versus">{t('vs.')}</p>
       <DropZone
-        title="Right Sheet File"
-        description="CSV or XLSX"
+        title={t('Right Sheet File')}
+        description={t('CSV or XLSX')}
         accept=".csv,.xlsx"
         file={right}
         pending={rightFileLoader.pending}
-        loading={rightFileLoader.visible ? 'Loading' : ''}
+        loading={rightFileLoader.visible ? t('Loading') : ''}
         onchange={(event) => chooseInputFile('right', event)}
         ondrop={(event) => dropFile('right', event)}
       />
@@ -409,12 +452,12 @@
       style:--preview-split={`${previewSplit}%`}
       style:--vertical-split={`${verticalSplit}%`}
     >
-      <section class="previews" aria-label="Source previews">
+      <section class="previews" aria-label={t('Source previews')}>
         <SourcePreview
-          title="Left"
+          title={t('Left')}
           input={selectedFiles.left}
           pending={leftFileLoader.pending}
-          loading={leftFileLoader.visible ? 'Loading' : ''}
+          loading={leftFileLoader.visible ? t('Loading') : ''}
           onchange={(event) => chooseInputFile('left', event)}
           ondownload={() => downloadSource(selectedFiles.left)}
           onsheet={(event) => setSheet('left', event)}
@@ -422,14 +465,14 @@
         <button
           type="button"
           class="split-handle split-handle-columns"
-          aria-label="Resize source preview panes"
+          aria-label={t('Resize source preview panes')}
           onpointerdown={(event) => startResize('columns', event)}
         ></button>
         <SourcePreview
-          title="Right"
+          title={t('Right')}
           input={selectedFiles.right}
           pending={rightFileLoader.pending}
-          loading={rightFileLoader.visible ? 'Loading' : ''}
+          loading={rightFileLoader.visible ? t('Loading') : ''}
           onchange={(event) => chooseInputFile('right', event)}
           ondownload={() => downloadSource(selectedFiles.right)}
           onsheet={(event) => setSheet('right', event)}
@@ -439,29 +482,29 @@
       <button
         type="button"
         class="split-handle split-handle-rows"
-        aria-label="Resize source and diff panes"
+        aria-label={t('Resize source and diff panes')}
         onpointerdown={(event) => startResize('rows', event)}
       ></button>
 
       {#if result}
-        <section class="results-toolbar" aria-label="Compare results">
-          <div class="summary-chips" aria-label="Diff summary">
-            {#each chips as chip (chip.label)}
+        <section class="results-toolbar" aria-label={t('Compare results')}>
+          <div class="summary-chips" aria-label={t('Diff summary')}>
+            {#each chips as chip (chip.labelKey)}
               <output class={chip.kind}>
                 <b>{chip.marker}</b>
-                {chip.count} {chip.label}
+                {countFormat.format(chip.count)} {summaryLabel(chip.labelKey)}
               </output>
             {/each}
           </div>
 
-          <section class="options" aria-label="Compare options">
+          <section class="options" aria-label={t('Compare options')}>
             <label>
               <input
                 type="checkbox"
                 checked={options.show_order}
                 onchange={(event) => setOption('show_order', event)}
               />
-              Show order
+              {t('Show order')}
             </label>
             <label>
               <input
@@ -469,7 +512,7 @@
                 checked={options.show_unchanged}
                 onchange={(event) => setOption('show_unchanged', event)}
               />
-              Show unchanged rows
+              {t('Show unchanged rows')}
             </label>
             <label>
               <input
@@ -477,7 +520,7 @@
                 checked={options.show_unchanged_columns}
                 onchange={(event) => setOption('show_unchanged_columns', event)}
               />
-              Show unchanged columns
+              {t('Show unchanged columns')}
             </label>
             <label>
               <input
@@ -485,7 +528,7 @@
                 checked={options.ignore_whitespace}
                 onchange={(event) => setOption('ignore_whitespace', event)}
               />
-              Ignore whitespace
+              {t('Ignore whitespace')}
             </label>
             <label>
               <input
@@ -493,7 +536,7 @@
                 checked={options.ignore_case}
                 onchange={(event) => setOption('ignore_case', event)}
               />
-              Ignore case
+              {t('Ignore case')}
             </label>
           </section>
         </section>
@@ -501,13 +544,13 @@
       {/if}
 
       {#if result || diffLoader.visible}
-        <section class="diff" aria-label="Diff table">
+        <section class="diff" aria-label={t('Diff table')}>
           {#if result}
             {#if noChanges}
-              <p class="no-changes">No changes found</p>
+              <p class="no-changes">{t('No changes found')}</p>
             {:else}
               <FrozenTable
-                ariaLabel="Diff data table"
+                ariaLabel={t('Diff data table')}
                 rowCount={diffRowCount}
                 columnCount={diffColumnCountValue}
                 columnWidths={diffColumnWidths}
@@ -520,12 +563,13 @@
 
           {#if diffLoader.visible}
             <div class="diff-loading">
-              <LoadingSpinner label="Diffing" />
+              <LoadingSpinner label={t('Diffing')} />
             </div>
           {/if}
         </section>
       {/if}
     </section>
+  {/if}
   {/if}
 
 </main>

@@ -6,14 +6,14 @@ import type { SummaryChip } from "./types";
  */
 export function summaryChips(summary: daff.DiffSummary): SummaryChip[] {
   const configs = [
-    { marker: "+++", count: summary.row_inserts, label: "row inserts", kind: "insert" },
-    { marker: "---", count: summary.row_deletes, label: "row deletes", kind: "delete" },
-    { marker: "->", count: summary.row_updates, label: "row updates", kind: "update" },
-    { marker: ":", count: summary.row_reorders, label: "row reorders", kind: "reorder" },
-    { marker: "+++", count: summary.col_inserts, label: "column inserts", kind: "insert" },
-    { marker: "---", count: summary.col_deletes, label: "column deletes", kind: "delete" },
-    { marker: "()", count: summary.col_renames, label: "column renames", kind: "update" },
-    { marker: ":", count: summary.col_reorders, label: "column reorders", kind: "reorder" },
+    { marker: "+++", count: summary.row_inserts, labelKey: "rowInserts", kind: "insert" },
+    { marker: "---", count: summary.row_deletes, labelKey: "rowDeletes", kind: "delete" },
+    { marker: "->", count: summary.row_updates, labelKey: "rowUpdates", kind: "update" },
+    { marker: ":", count: summary.row_reorders, labelKey: "rowReorders", kind: "reorder" },
+    { marker: "+++", count: summary.col_inserts, labelKey: "columnInserts", kind: "insert" },
+    { marker: "---", count: summary.col_deletes, labelKey: "columnDeletes", kind: "delete" },
+    { marker: "()", count: summary.col_renames, labelKey: "columnRenames", kind: "update" },
+    { marker: ":", count: summary.col_reorders, labelKey: "columnReorders", kind: "reorder" },
   ] satisfies SummaryChip[];
   return configs.filter((item) => item.count);
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
   import { clamp, nearestOffsetIndex } from './freezeMath'
+  import { getI18n } from './i18n/i18n.svelte'
   import {
     columnMetrics,
     defaultColumnWidth,
@@ -66,7 +67,14 @@
   const visibleHandle = $derived(adjustable && (handleVisible || handleFocused || dragging))
   const handleX = $derived(metrics.offsets[clamp(0, frozenCols, metrics.offsets.length - 1)] ?? 0)
   const handleY = $derived(rowOffsets[clamp(0, frozenRows, rowOffsets.length - 1)] ?? 0)
-  const handleLabel = $derived(`Frozen rows ${frozenRows}, frozen columns ${frozenCols}`)
+  const i18n = getI18n()
+  const t = i18n.t.bind(i18n)
+  const handleLabel = $derived(
+    t('Frozen rows {frozenRows}, frozen columns {frozenCols}', { frozenRows, frozenCols }),
+  )
+  const adjustFrozenRowsAndColumns = $derived(
+    t('Adjust frozen rows and columns. {handleLabel}', { handleLabel }),
+  )
 
   onDestroy(() => {
     if (rangeFrame) cancelAnimationFrame(rangeFrame)
@@ -315,7 +323,7 @@
       class={{ 'freeze-handle': true, visible: visibleHandle, dragging }}
       style:left={`${handleX}px`}
       style:top={`${handleY}px`}
-      aria-label={`Adjust frozen rows and columns. ${handleLabel}`}
+      aria-label={adjustFrozenRowsAndColumns}
       onpointerdown={startDrag}
       onpointermove={drag}
       onpointerup={endDrag}

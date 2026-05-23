@@ -10,7 +10,6 @@ Available at https://sheet.compare
 
 <img width="1677" height="992" alt="圖片" src="https://github.com/user-attachments/assets/fea9e235-d20f-4c9b-ab74-09a6ff366d82" />
 
-
 ## Libraries
 
 - [SheetJS](https://sheetjs.com/): CSV / XLSX parsing

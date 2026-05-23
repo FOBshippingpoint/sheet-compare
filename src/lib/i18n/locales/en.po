@@ -1,0 +1,166 @@
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+msgid "Browse Files"
+msgstr "Browse Files"
+
+msgid "Download"
+msgstr "Download"
+
+msgid "Export CSV"
+msgstr "Export CSV"
+
+msgid "Export HTML"
+msgstr "Export HTML"
+
+msgid "Exporting"
+msgstr "Exporting"
+
+msgid "Replace File"
+msgstr "Replace File"
+
+msgid "Sheet Compare"
+msgstr "Sheet Compare"
+
+msgid "Discard current work?"
+msgstr "Discard current work?"
+
+msgid "Adjust frozen rows and columns. {handleLabel}"
+msgstr "Adjust frozen rows and columns. {handleLabel}"
+
+msgid "Frozen rows {frozenRows}, frozen columns {frozenCols}"
+msgstr "Frozen rows {frozenRows}, frozen columns {frozenCols}"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Top actions"
+msgstr "Top actions"
+
+msgid "Compare options"
+msgstr "Compare options"
+
+msgid "Ignore case"
+msgstr "Ignore case"
+
+msgid "Ignore whitespace"
+msgstr "Ignore whitespace"
+
+msgid "Show order"
+msgstr "Show order"
+
+msgid "Show unchanged columns"
+msgstr "Show unchanged columns"
+
+msgid "Show unchanged rows"
+msgstr "Show unchanged rows"
+
+msgid "Source previews"
+msgstr "Source previews"
+
+msgid "Resize source and diff panes"
+msgstr "Resize source and diff panes"
+
+msgid "Resize source preview panes"
+msgstr "Resize source preview panes"
+
+msgid "Compare results"
+msgstr "Compare results"
+
+msgid "Diff summary"
+msgstr "Diff summary"
+
+msgid "No changes found"
+msgstr "No changes found"
+
+msgid "Exam results CSV"
+msgstr "Exam results CSV"
+
+msgid "Sample"
+msgstr "Sample"
+
+msgid "Load sample..."
+msgstr "Load sample..."
+
+msgid "Loading sample"
+msgstr "Loading sample"
+
+msgid "Registration results XLSX"
+msgstr "Registration results XLSX"
+
+msgid "Sheet"
+msgstr "Sheet"
+
+msgid "{sheetLabel}: {sheetName}"
+msgstr "{sheetLabel}: {sheetName}"
+
+msgid "Left"
+msgstr "Left"
+
+msgid "Right"
+msgstr "Right"
+
+msgid "Diffing"
+msgstr "Diffing"
+
+msgid "Loading"
+msgstr "Loading"
+
+msgid "column deletes"
+msgstr "column deletes"
+
+msgid "column inserts"
+msgstr "column inserts"
+
+msgid "column renames"
+msgstr "column renames"
+
+msgid "column reorders"
+msgstr "column reorders"
+
+msgid "row deletes"
+msgstr "row deletes"
+
+msgid "row inserts"
+msgstr "row inserts"
+
+msgid "row reorders"
+msgstr "row reorders"
+
+msgid "row updates"
+msgstr "row updates"
+
+msgid "Diff table"
+msgstr "Diff table"
+
+msgid "Diff data table"
+msgstr "Diff data table"
+
+msgid "Sheet preview table"
+msgstr "Sheet preview table"
+
+msgid "Choose files"
+msgstr "Choose files"
+
+msgid "CSV or XLSX"
+msgstr "CSV or XLSX"
+
+msgid "Left Sheet File"
+msgstr "Left Sheet File"
+
+msgid "{title} replacement file"
+msgstr "{title} replacement file"
+
+msgid "Right Sheet File"
+msgstr "Right Sheet File"
+
+msgid "{title} selector"
+msgstr "{title} selector"
+
+msgid "vs."
+msgstr "vs."

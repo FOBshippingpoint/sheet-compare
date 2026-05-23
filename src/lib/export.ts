@@ -1,20 +1,16 @@
 import * as XLSX from "xlsx";
 import { fileArrayBuffer, fileText, loadTableFile } from "./files";
+import type { SupportedLocale } from "./i18n/locale";
 import type { CompareOptions, SelectedTableFile, TableRows } from "./types";
 
-type StandaloneFileState =
-  | {
-      name: string;
-      mime: string;
-      encoding: "text";
-      data: string;
-    }
-  | {
-      name: string;
-      mime: string;
-      encoding: "base64";
-      data: string;
-    };
+type Encoding = "text" | "base64";
+
+type StandaloneFileState = {
+  name: string;
+  mime: string;
+  encoding: Encoding;
+  data: string;
+};
 
 type StandaloneDocumentState = {
   version: 1;
@@ -25,10 +21,12 @@ type StandaloneDocumentState = {
     right: string;
   };
   options: CompareOptions;
+  locale?: SupportedLocale;
 };
 
 export type LoadedStandaloneState = {
   options: CompareOptions;
+  locale?: SupportedLocale;
   left: Promise<SelectedTableFile>;
   right: Promise<SelectedTableFile>;
 };
@@ -57,17 +55,14 @@ export async function exportStandaloneHtml({
   left,
   right,
   options,
+  locale,
 }: {
   left: SelectedTableFile;
   right: SelectedTableFile;
   options: CompareOptions;
+  locale: SupportedLocale;
 }): Promise<string> {
-  const [leftData, rightData, assets] = await Promise.all([
-    fileState(left),
-    fileState(right),
-    inlineAssets(),
-  ]);
-
+  const [leftData, rightData] = await Promise.all([fileState(left), fileState(right)]);
   const state: StandaloneDocumentState = {
     version: 1,
     left: leftData,
@@ -77,22 +72,15 @@ export async function exportStandaloneHtml({
       right: right.sheetName,
     },
     options,
+    locale,
   };
+  const html = document.implementation.createHTMLDocument();
 
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sheet Compare</title>
-    ${assets.styles}
-    <script id="table-compare-data" type="application/json">${JSON.stringify(state)}</script>
-  </head>
-  <body>
-    <div id="app"></div>
-    ${assets.scripts}
-  </body>
-</html>`;
+  html.documentElement.lang = locale;
+  html.body.replaceChildren(appMount(html), standaloneData(html, state));
+  await inlineAssets(html);
+
+  return `<!doctype html>\n${html.documentElement.outerHTML}`;
 }
 
 /**
@@ -108,6 +96,7 @@ export function loadStandaloneState(): LoadedStandaloneState | null {
 
   return {
     options: state.options,
+    locale: state.locale,
     left: selectedFromState(state.left, state.sheets.left),
     right: selectedFromState(state.right, state.sheets.right),
   };
@@ -142,26 +131,31 @@ async function fileState(selected: SelectedTableFile): Promise<StandaloneFileSta
   };
 }
 
-async function inlineAssets(): Promise<{ styles: string; scripts: string }> {
+async function inlineAssets(html: Document): Promise<void> {
   const styles = await Promise.all(
     [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')].map(async (link) => {
-      const css = await fetch(link.href).then((response) => response.text());
-      return `<style>${css}</style>`;
+      const style = html.createElement("style");
+
+      style.textContent = await fetch(link.href).then((response) => response.text());
+      return style;
     }),
   );
   const scripts = await Promise.all(
     [...document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]')].map(
       async (script) => {
-        const js = await fetch(script.src).then((response) => response.text());
-        return `<script type="module">${js.replaceAll("</script>", "<\\/script>")}</script>`;
+        const inlineScript = html.createElement("script");
+
+        inlineScript.type = "module";
+        inlineScript.textContent = escapeScriptText(
+          await fetch(script.src).then((response) => response.text()),
+        );
+        return inlineScript;
       },
     ),
   );
 
-  return {
-    styles: styles.join("\n"),
-    scripts: scripts.join("\n"),
-  };
+  html.head.append(...styles);
+  html.body.append(...scripts);
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -174,4 +168,24 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
+function appMount(html: Document): HTMLDivElement {
+  const element = html.createElement("div");
+
+  element.id = "app";
+  return element;
+}
+
+function standaloneData(html: Document, state: StandaloneDocumentState): HTMLScriptElement {
+  const element = html.createElement("script");
+
+  element.id = "table-compare-data";
+  element.type = "application/json";
+  element.textContent = escapeScriptText(JSON.stringify(state));
+  return element;
+}
+
+function escapeScriptText(value: string): string {
+  return value.replaceAll("</script>", "<\\/script>");
 }

@@ -2,6 +2,7 @@ import { afterEach } from "vitest";
 import { mount, unmount } from "svelte";
 import "../../src/app.css";
 import App from "../../src/App.svelte";
+import type { SupportedLocale } from "../../src/lib/i18n/locale";
 
 type MountFunction = (
   component: unknown,
@@ -12,7 +13,8 @@ const mountComponentUntyped = mount as MountFunction;
 
 let app: unknown = null;
 
-export function mountApp() {
+export function mountApp(locale: SupportedLocale = "en") {
+  localStorage.setItem("sheet-compare-locale", locale);
   app = mountComponentUntyped(App, { target: document.body });
 }
 
@@ -28,5 +30,6 @@ export function requireElement<T extends Element>(element: T | null): T {
 afterEach(() => {
   if (app) unmount(app as never);
   app = null;
+  localStorage.removeItem("sheet-compare-locale");
   document.body.replaceChildren();
 });

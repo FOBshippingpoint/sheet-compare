@@ -2,12 +2,13 @@ import * as XLSX from "xlsx";
 import { loadTableFile } from "./files";
 import type { SelectedTableFile, TableRows } from "./types";
 
-export const sampleOptions = [
-  { id: "exam-csv", label: "Exam results CSV" },
-  { id: "registration-xlsx", label: "Registration results XLSX" },
-] as const;
+export const sampleOptions = [{ id: "exam-csv" }, { id: "registration-xlsx" }] as const;
 
 export type SampleId = (typeof sampleOptions)[number]["id"];
+
+export type SampleOption = {
+  id: SampleId;
+};
 
 export type SampleFiles = {
   left: SelectedTableFile;

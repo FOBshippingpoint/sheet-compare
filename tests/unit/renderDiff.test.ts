@@ -24,8 +24,8 @@ const emptySummary: daff.DiffSummary = {
 describe("summaryChips", () => {
   it("keeps only nonzero daff summary values", () => {
     expect(summaryChips({ ...emptySummary, row_inserts: 2, col_renames: 1 })).toEqual([
-      { marker: "+++", count: 2, label: "row inserts", kind: "insert" },
-      { marker: "()", count: 1, label: "column renames", kind: "update" },
+      { marker: "+++", count: 2, labelKey: "rowInserts", kind: "insert" },
+      { marker: "()", count: 1, labelKey: "columnRenames", kind: "update" },
     ]);
   });
 });

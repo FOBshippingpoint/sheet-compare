@@ -1,9 +1,10 @@
 import { playwright } from "@vitest/browser-playwright";
+import { lingui } from "@lingui/vite-plugin";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte(), lingui()],
   optimizeDeps: {
     include: ["daff"],
   },

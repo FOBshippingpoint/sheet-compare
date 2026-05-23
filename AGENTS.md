@@ -60,6 +60,7 @@
 - Integration tests must focus on end-to-end user actions. They should verify that the main compare flow does not break: choose left file, choose right file, select sheets when needed, run diff, inspect summary/table output, and export.
 - Before adding a function or class, check whether it can be tested directly. If it cannot be tested without heavy setup, simplify the API or move logic to a smaller boundary.
 - Before adding a test, check whether it proves meaningful behavior. Do not add tests only for coverage numbers or appearance.
+- Test the general contract, not incidental examples. Prefer representative supported and unsupported cases over exhaustive negative lists that encode unrelated policy or cultural assumptions.
 - Test names and assertion messages must clearly describe the behavior under test.
 - Before adding a new HTML element, check whether it gives integration tests a reliable query target through semantic role, label, accessible name, or stable visible text.
 - Prefer semantic HTML that is both accessible to users and easy to target in integration tests.

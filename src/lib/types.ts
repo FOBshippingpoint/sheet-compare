@@ -71,6 +71,16 @@ export type TableCell = {
 export type SummaryChip = {
   marker: string;
   count: number;
-  label: string;
+  labelKey: SummaryChipLabel;
   kind: "insert" | "delete" | "update" | "reorder";
 };
+
+export type SummaryChipLabel =
+  | "rowInserts"
+  | "rowDeletes"
+  | "rowUpdates"
+  | "rowReorders"
+  | "columnInserts"
+  | "columnDeletes"
+  | "columnRenames"
+  | "columnReorders";

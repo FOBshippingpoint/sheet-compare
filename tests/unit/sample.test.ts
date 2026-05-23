@@ -5,10 +5,7 @@ import { loadSampleFiles, sampleOptions } from "../../src/lib/sample";
 
 describe("sampleOptions", () => {
   it("offers CSV and XLSX samples", () => {
-    expect(sampleOptions).toEqual([
-      { id: "exam-csv", label: "Exam results CSV" },
-      { id: "registration-xlsx", label: "Registration results XLSX" },
-    ]);
+    expect(sampleOptions.map((option) => option.id)).toEqual(["exam-csv", "registration-xlsx"]);
   });
 });
 
