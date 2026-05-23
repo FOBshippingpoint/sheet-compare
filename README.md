@@ -1,6 +1,7 @@
-<!-- <div align="center"> -->
-<!-- <img alt="shittp logo" src="https://raw.githubusercontent.com/FOBshippingpoint/shittp/refs/heads/main/web/public/logo.svg"></img> -->
-<!-- </div> -->
+<div align="center">
+<img alt="shittp logo" src="https://raw.githubusercontent.com/FOBshippingpoint/sheet-compare/refs/heads/main/public/favicon.svg" width="80"></img>
+</div>
+
 
 # Sheet Compare
 
